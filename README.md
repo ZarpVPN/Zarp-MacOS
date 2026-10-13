@@ -1,10 +1,10 @@
 # Zarp for macOS
 
-[![CI](https://github.com/feg55/Zarp-MacOS/actions/workflows/ci.yml/badge.svg)](https://github.com/feg55/Zarp-MacOS/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/feg55/Zarp-MacOS?include_prereleases)](https://github.com/feg55/Zarp-MacOS/releases/latest)
-[![License: MIT](https://img.shields.io/github/license/feg55/Zarp-MacOS)](LICENSE)
+[![CI](https://github.com/ZarpVPN/Zarp-MacOS/actions/workflows/ci.yml/badge.svg)](https://github.com/ZarpVPN/Zarp-MacOS/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ZarpVPN/Zarp-MacOS?include_prereleases)](https://github.com/ZarpVPN/Zarp-MacOS/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/ZarpVPN/Zarp-MacOS)](LICENSE)
 
-One-click Cloudflare WARP for networks that block it. Zarp finds a [zapret2](https://github.com/bol-van/zapret2) strategy that gets the WARP handshake through DPI, remembers it and connects. The macOS version of [Zarp for Windows](https://github.com/feg55/Zarp) and [Zarp for Android](https://github.com/feg55/Zarp-Android), a native app for Apple Silicon.
+One-click Cloudflare WARP for networks that block it. Zarp finds a [zapret2](https://github.com/bol-van/zapret2) strategy that gets the WARP handshake through DPI, remembers it and connects. The macOS version of [Zarp for Windows](https://github.com/ZarpVPN/Zarp) and [Zarp for Android](https://github.com/ZarpVPN/Zarp-Android), a native app for Apple Silicon.
 
 > [!NOTE]
 > **Zarp won't open?** The release is not notarized by Apple, so macOS blocks the first launch. [Why won't Zarp open?](#why-wont-zarp-open) shows the three clicks, with screenshots.
@@ -15,13 +15,13 @@ One-click Cloudflare WARP for networks that block it. Zarp finds a [zapret2](htt
 
 | Platform | Download | Requirements |
 |---|---|---|
-| **macOS** | [**DMG**](https://github.com/feg55/Zarp-MacOS/releases/latest) · [all releases](https://github.com/feg55/Zarp-MacOS/releases) | Apple Silicon (M1 or newer), macOS 14+, an administrator password once. No WARP app needed
-| **Windows** | [**Zarp.exe**](https://github.com/feg55/Zarp/releases/latest/download/Zarp.exe) · [all releases](https://github.com/feg55/Zarp/releases) · [source](https://github.com/ZarpVPN/Zarp)| Windows 10/11 x64, administrator rights. [Cloudflare WARP](https://one.one.one.one/) is installed by Zarp if it is missing |
-| **Android** | [**APK**](https://github.com/feg55/Zarp-Android/releases/latest) · [all releases](https://github.com/ZarpVPN/Zarp-Android/releases) · [source](https://github.com/feg55/Zarp-Android) | Android 8.0+, no root, no WARP app needed |
+| **macOS** | [**DMG**](https://github.com/ZarpVPN/Zarp-MacOS/releases/latest) · [all releases](https://github.com/ZarpVPN/Zarp-MacOS/releases) | Apple Silicon (M1 or newer), macOS 14+, an administrator password once. No WARP app needed
+| **Windows** | [**Zarp.exe**](https://github.com/ZarpVPN/Zarp/releases/latest/download/Zarp.exe) · [all releases](https://github.com/ZarpVPN/Zarp/releases) · [source](https://github.com/ZarpVPN/Zarp)| Windows 10/11 x64, administrator rights. [Cloudflare WARP](https://one.one.one.one/) is installed by Zarp if it is missing |
+| **Android** | [**APK**](https://github.com/ZarpVPN/Zarp-Android/releases/latest) · [all releases](https://github.com/ZarpVPN/Zarp-Android/releases) · [source](https://github.com/ZarpVPN/Zarp-Android) | Android 8.0+, no root, no WARP app needed |
 
-[![macOS release](https://img.shields.io/github/v/release/feg55/Zarp-MacOS?label=macOS)](https://github.com/feg55/Zarp-MacOS/releases/latest)
-[![Windows release](https://img.shields.io/github/v/release/feg55/Zarp?label=Windows)](https://github.com/feg55/Zarp/releases/latest)
-[![Android release](https://img.shields.io/github/v/release/feg55/Zarp-Android?label=Android)](https://github.com/feg55/Zarp-Android/releases/latest)
+[![macOS release](https://img.shields.io/github/v/release/ZarpVPN/Zarp-MacOS?label=macOS)](https://github.com/ZarpVPN/Zarp-MacOS/releases/latest)
+[![Windows release](https://img.shields.io/github/v/release/ZarpVPN/Zarp?label=Windows)](https://github.com/ZarpVPN/Zarp/releases/latest)
+[![Android release](https://img.shields.io/github/v/release/ZarpVPN/Zarp-Android?label=Android)](https://github.com/ZarpVPN/Zarp-Android/releases/latest)
 
 ## 💬 Community & Support
 Have questions, ideas, or feedback?
@@ -157,7 +157,7 @@ All UI strings live in [`Resources/Lang`](Resources/Lang), one `key = value` fil
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Zarp for Windows is MIT too; [Zarp for Android](https://github.com/feg55/Zarp-Android) is GPL-3.0 and was studied as a design reference, not copied ([details](docs/ARCHITECTURE.md#11-licensing-and-provenance)).
+MIT, see [LICENSE](LICENSE). Zarp for Windows is MIT too; [Zarp for Android](https://github.com/ZarpVPN/Zarp-Android) is GPL-3.0 and was studied as a design reference, not copied ([details](docs/ARCHITECTURE.md#11-licensing-and-provenance)).
 
 Bundled components: [usque](https://github.com/Diniboy1123/usque), [connect-ip-go](https://github.com/Diniboy1123/connect-ip-go), [quic-go](https://github.com/quic-go/quic-go) and the `tun` package of [wireguard-go](https://git.zx2c4.com/wireguard-go), all under permissive licenses, plus the fake packets from [zapret2](https://github.com/bol-van/zapret2) (MIT). License texts are in [`Resources/Licenses`](Resources/Licenses/THIRD_PARTY_NOTICES.md), also reachable from Settings > Licenses.
 
