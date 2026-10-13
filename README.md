@@ -15,10 +15,13 @@ One-click Cloudflare WARP for networks that block it. Zarp finds a [zapret2](htt
 
 | Platform | Download | Requirements |
 |---|---|---|
-| **macOS** | [**DMG**](https://github.com/feg55/Zarp-MacOS/releases/latest) · [all releases](https://github.com/feg55/Zarp-MacOS/releases) | Apple Silicon Mac (M1 or newer), macOS 14 or later (tested on 15), an administrator password once. No WARP app needed: Zarp is its own WARP client |
-| **Windows** | [**Zarp.exe**](https://github.com/feg55/Zarp/releases/latest/download/Zarp.exe) · [all releases](https://github.com/feg55/Zarp/releases) | Windows 10/11 x64, administrator rights. [Cloudflare WARP](https://one.one.one.one/) is installed by Zarp if it is missing |
-| **Android** | [**APK**](https://github.com/feg55/Zarp-Android/releases/latest) · [source](https://github.com/feg55/Zarp-Android) | Android 8.0+, no root, no WARP app needed |
+| **macOS** | [**DMG**](https://github.com/feg55/Zarp-MacOS/releases/latest) · [all releases](https://github.com/feg55/Zarp-MacOS/releases) | Apple Silicon (M1 or newer), macOS 14+, an administrator password once. No WARP app needed
+| **Windows** | [**Zarp.exe**](https://github.com/feg55/Zarp/releases/latest/download/Zarp.exe) · [all releases](https://github.com/feg55/Zarp/releases) · [source](https://github.com/feg55/Zarp-MacOS)| Windows 10/11 x64, administrator rights. [Cloudflare WARP](https://one.one.one.one/) is installed by Zarp if it is missing |
+| **Android** | [**APK**](https://github.com/feg55/Zarp-Android/releases/latest) · [all releases](https://github.com/ZarpVPN/Zarp-Android/releases) · [source](https://github.com/feg55/Zarp-Android) | Android 8.0+, no root, no WARP app needed |
 
+[![macOS release](https://img.shields.io/github/v/release/feg55/Zarp-MacOS?label=macOS)](https://github.com/feg55/Zarp-MacOS/releases/latest)
+[![Windows release](https://img.shields.io/github/v/release/feg55/Zarp?label=Windows)](https://github.com/feg55/Zarp/releases/latest)
+[![Android release](https://img.shields.io/github/v/release/feg55/Zarp-Android?label=Android)](https://github.com/feg55/Zarp-Android/releases/latest)
 
 ## 💬 Community & Support
 Have questions, ideas, or feedback?
