@@ -19,6 +19,17 @@ One-click Cloudflare WARP for networks that block it. Zarp finds a [zapret2](htt
 | **Windows** | [**Zarp.exe**](https://github.com/feg55/Zarp/releases/latest/download/Zarp.exe) · [all releases](https://github.com/feg55/Zarp/releases) | Windows 10/11 x64, administrator rights. [Cloudflare WARP](https://one.one.one.one/) is installed by Zarp if it is missing |
 | **Android** | [**APK**](https://github.com/feg55/Zarp-Android/releases/latest) · [source](https://github.com/feg55/Zarp-Android) | Android 8.0+, no root, no WARP app needed |
 
+
+## 💬 Community & Support
+Have questions, ideas, or feedback?
+Join our [Zarp Community](https://github.com/orgs/ZarpVPN/discussions)!
+
+- ❓ Ask questions and get help
+- 💡 Suggest new features
+- 📢 Follow announcements
+- 🗳️ Vote on upcoming improvements
+
+
 ## Features
 
 - **One button.** The first press searches for the fastest working strategy, later presses connect right away.
