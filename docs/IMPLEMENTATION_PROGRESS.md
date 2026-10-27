@@ -14,6 +14,38 @@ Working date: 2026-10-27 (Europe/Moscow). Earlier results retain their execution
 - Historical references match the snapshot and were preserved. A separate Windows
   1.6 prerelease reference was added, as recorded below. `_reference/` is ignored.
 
+## Swift CI test crash after the 1.0.0 push: 2026-10-27
+
+- User supplied the GitHub Actions #20 Swift log for release commit 2d61438.
+  Swift compilation succeeds; execution ends with SIGTRAP and an array-index
+  fatal error in the combined subscription deadline/cancellation test. Source
+  evidence: `build/ci-1.0.0-swift-failure.json`.
+- The fixture sleeps 70 ms per request under a shared 100 ms deadline. A late
+  first wake can legitimately exhaust the budget before request two starts.
+  The test then indexes requests[1] after a nonfatal count assertion. A shorter
+  request list is valid behavior and must not terminate the test process.
+- Replaced that combined test with separate shared-deadline, actual timeout
+  cleanup and explicit cancellation checks. Shared-deadline validation uses
+  immediate scripted replies. A cancellable stalled request exercises the real
+  deadline, allowing expiry before any request is scheduled. An XCTest
+  expectation observes request start before explicit cancellation; completed
+  cancellation counts prove cleanup was joined. XCTUnwrap replaces unchecked
+  request indices throughout this test file.
+- Focused tests PASS: 8 tests, `/tmp/zarp-100-ci-swift-focused.log`. Full Swift
+  suite PASS: 353 tests, zero failures, 5.768 s,
+  `/tmp/zarp-100-ci-swift-full.log`. The remaining CI unsigned arm64 Release
+  build also passes in separate DerivedData:
+  `/tmp/zarp-100-ci-unsigned-build.log`.
+- Focused stability check PASS: 50 repeats, 400 test executions, 34.419 s,
+  `/tmp/zarp-100-ci-swift-stress.log`. Notices, documentation links and whitespace
+  checks also pass. Validation record: `build/ci-1.0.0-swift-fix-verification.json`.
+  The production downloader,
+  timeout policy, app, daemon, bundled engines and VPN behavior are unchanged.
+  The supplied CI run passed its Go step; no Go source was changed. No real
+  TUN, production GUI/service/IPC, routes, DNS, account or active VPN operation
+  was performed. The existing v1.0.0 tag and signed release assets are retained;
+  a new remote CI result requires pushing the test correction.
+
 ## Release 1.0.0 preparation: 2026-10-27
 
 - Set app and embedded-daemon marketing version to 1.0.0 and build to 16.

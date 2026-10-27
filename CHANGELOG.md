@@ -6,6 +6,13 @@ All notable changes to Zarp for macOS are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Subscription downloader tests no longer assume that two delayed requests fit
+  into a 100 ms deadline on a busy CI runner. Shared deadlines, timeout cleanup
+  and cancellation are checked separately, with safe request extraction and an
+  explicit request-start expectation. Production timeout policy is unchanged.
+
 ## [1.0.0] - 2026-10-27
 
 ### Added

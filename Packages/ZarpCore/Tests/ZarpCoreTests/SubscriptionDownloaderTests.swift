@@ -6,20 +6,32 @@ private actor ScriptedSubscriptionTransport: SubscriptionHTTPTransport {
         case response(SubscriptionHTTPResponse)
         case failure(SubscriptionError)
         case rawFailure
+        case waitForCancellation
     }
     struct Request: Sendable { let url: URL; let agent: String; let deadline: ContinuousClock.Instant }
     private var steps: [Step]
-    private let delay: UInt64
+    private let onRequest: @Sendable (Request) -> Void
     private(set) var requests: [Request] = []
-    init(_ steps: [Step], delay: UInt64 = 0) { self.steps = steps; self.delay = delay }
+    private(set) var cancelledRequests = 0
+    init(_ steps: [Step], onRequest: @escaping @Sendable (Request) -> Void = { _ in }) {
+        self.steps = steps; self.onRequest = onRequest
+    }
     func get(url: URL, userAgent: String, deadline: ContinuousClock.Instant) async throws -> SubscriptionHTTPResponse {
-        requests.append(Request(url: url, agent: userAgent, deadline: deadline))
-        if delay > 0 { try await Task.sleep(nanoseconds: delay) }
+        let request = Request(url: url, agent: userAgent, deadline: deadline)
+        requests.append(request)
+        onRequest(request)
         guard !steps.isEmpty else { throw SubscriptionError.network }
         switch steps.removeFirst() {
         case .response(let response): return response
         case .failure(let error): throw error
         case .rawFailure: throw NSError(domain: "private-token.example.test", code: 1, userInfo: [NSLocalizedDescriptionKey: "private-token"])
+        case .waitForCancellation:
+            do { try await Task.sleep(nanoseconds: 30_000_000_000) }
+            catch is CancellationError {
+                cancelledRequests += 1
+                throw CancellationError()
+            }
+            throw SubscriptionError.network
         }
     }
 }
@@ -48,7 +60,9 @@ final class SubscriptionDownloaderTests: XCTestCase {
             XCTAssertEqual(result.profiles.count, 1)
             let requests = await transport.requests
             XCTAssertEqual(requests.map(\.agent), ["Zarp/1.0", "v2rayN/7.0"])
-            XCTAssertEqual(requests[0].deadline, requests[1].deadline)
+            let first = try XCTUnwrap(requests.first)
+            let second = try XCTUnwrap(requests.dropFirst().first)
+            XCTAssertEqual(first.deadline, second.deadline)
         }
         let transport = ScriptedSubscriptionTransport([.response(.init(status: 200, body: Data("[{\"private-token\":1}]".utf8))), .failure(.network)])
         let result = try await SubscriptionDownloader(transport: transport).load(source: source())
@@ -83,7 +97,8 @@ final class SubscriptionDownloaderTests: XCTestCase {
         let requests = await transport.requests
         XCTAssertEqual(requests.count, 6)
         XCTAssertEqual(requests.last?.url.absoluteString, "https://subscription.example.test/hop/5")
-        XCTAssertTrue(requests.allSatisfy { $0.deadline == requests[0].deadline })
+        let first = try XCTUnwrap(requests.first)
+        XCTAssertTrue(requests.allSatisfy { $0.deadline == first.deadline })
         XCTAssertEqual(original.id, try source().id)
     }
 
@@ -107,27 +122,50 @@ final class SubscriptionDownloaderTests: XCTestCase {
         XCTAssertEqual(requests.count, 6)
     }
 
-    func testOneDeadlineCoversBothUserAgentAttemptsAndCancellationStopsWork() async throws {
-        let transport = ScriptedSubscriptionTransport([.response(.init(status: 200, body: Data("<html>test</html>".utf8))), .response(.init(status: 200, body: good))], delay: 70_000_000)
-        let downloader = SubscriptionDownloader(transport: transport, timeout: .milliseconds(100))
-        let started = ContinuousClock.now
+    func testBothUserAgentAttemptsReceiveTheSameDeadline() async throws {
+        // Check the propagated deadline without requiring a scheduler to fit
+        // two sleeps into a narrow wall-clock window.
+        let transport = ScriptedSubscriptionTransport([
+            .response(.init(status: 200, body: Data("<html>test</html>".utf8))), .failure(.timeout)
+        ])
         do {
-            _ = try await downloader.load(source: source())
-            XCTFail("user-agent retry received a fresh time budget")
+            _ = try await SubscriptionDownloader(transport: transport).load(source: source())
+            XCTFail("retry timeout was accepted")
         } catch { XCTAssertEqual(error as? SubscriptionError, .timeout) }
-        XCTAssertLessThan(started.duration(to: .now), .seconds(1))
         let requests = await transport.requests
-        XCTAssertEqual(requests.count, 2)
-        XCTAssertEqual(requests[0].deadline, requests[1].deadline)
-        let delayed = ScriptedSubscriptionTransport([.response(.init(status: 200, body: good))], delay: 5_000_000_000)
+        XCTAssertEqual(requests.map(\.agent), ["Zarp/1.0", "v2rayN/7.0"])
+        let first = try XCTUnwrap(requests.first)
+        let second = try XCTUnwrap(requests.dropFirst().first)
+        XCTAssertEqual(first.deadline, second.deadline)
+    }
+
+    func testDeadlineCancelsAStalledFirstAttemptWithoutStartingARetry() async throws {
+        let transport = ScriptedSubscriptionTransport([.waitForCancellation, .response(.init(status: 200, body: good))])
+        do {
+            _ = try await SubscriptionDownloader(transport: transport, timeout: .milliseconds(100)).load(source: source())
+            XCTFail("stalled attempt outlived its deadline")
+        } catch { XCTAssertEqual(error as? SubscriptionError, .timeout) }
+        let requests = await transport.requests
+        let cancelled = await transport.cancelledRequests
+        // Expiry can precede even the first request on a busy executor. Every
+        // started request must be cancelled and joined; no retry is allowed.
+        XCTAssertLessThanOrEqual(requests.count, 1)
+        XCTAssertEqual(cancelled, requests.count)
+    }
+
+    func testCancellationStopsAnInFlightRequest() async throws {
+        let entered = expectation(description: "subscription request started")
+        let delayed = ScriptedSubscriptionTransport([.waitForCancellation], onRequest: { _ in entered.fulfill() })
         let source = try source()
         let pending = Task { try await SubscriptionDownloader(transport: delayed).load(source: source) }
-        for _ in 0..<100 {
-            if !(await delayed.requests).isEmpty { break }
-            try await Task.sleep(nanoseconds: 1_000_000)
-        }
+        defer { pending.cancel() }
+        await fulfillment(of: [entered], timeout: 5)
         pending.cancel()
         do { _ = try await pending.value; XCTFail("cancelled request returned a list") }
         catch { XCTAssertEqual(error as? SubscriptionError, .cancelled) }
+        let requests = await delayed.requests
+        let cancelled = await delayed.cancelledRequests
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(cancelled, 1)
     }
 }
