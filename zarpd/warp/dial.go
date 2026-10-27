@@ -1,11 +1,9 @@
 package warp
 
-// dial.go's sequence follows usque/api.ConnectTunnel's own connectTunnelHTTP3 (MIT,
-// github.com/Diniboy1123/usque/api/masque.go) with one deliberate difference: it takes an
-// already-open *net.UDPConn instead of creating one with net.ListenUDP. That's the whole point —
-// docs/ARCHITECTURE.md §3 — a strategy gets to send fake packets on that socket, bound to the
-// physical interface, before this function ever touches it, so the real QUIC Initial leaves
-// through the identical 5-tuple as the fakes.
+// The handshake follows usque/api.ConnectTunnel (MIT). The caller supplies an
+// already-bound UDP socket. DialH3WithStrategy injects decoys on that socket
+// immediately before each new real Initial flight, retaining its original
+// physical interface and source tuple across retries.
 
 import (
 	"context"
@@ -18,6 +16,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,6 +29,7 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/yosida95/uritemplate/v3"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/ipv4"
 )
 
 // These two hostnames/URLs are Cloudflare protocol constants (not usque's own design), the same
@@ -49,6 +49,11 @@ const (
 // (zarpd/tunnel) reads/writes against, plus everything needed to close it cleanly.
 type Session struct {
 	IPConn *connectip.Conn
+	// TCPPacketLimit reserves outer QUIC and HTTP DATAGRAM framing space. Zero
+	// leaves TCP unchanged, as required for the independent HTTP2 transport.
+	TCPPacketLimit int
+	quicStats      *quicCounters
+	quicCause      func() error
 
 	// closers run in order by Close. Built by the Dial* function that produced the session, so
 	// each transport tears down exactly the resources it created — including the ones the
@@ -73,6 +78,18 @@ func (s *Session) Close() {
 // api.PrepareTlsConfig's doc comment — the server's certificate itself isn't meaningfully
 // verifiable, so pinning the enrolled key is what actually authenticates the peer).
 func TLSConfigFromAccount(cfg *usqueconfig.Config) (*tls.Config, error) {
+	return TLSConfigForStrategy(cfg, "")
+}
+
+// TLSConfigForStrategy changes only the outer name of a WARP strategy. It never
+// resolves the name, changes CONNECT authority or relaxes the enrolled key pin.
+func TLSConfigForStrategy(cfg *usqueconfig.Config, name string) (*tls.Config, error) {
+	if name == "" {
+		name = connectSNI
+	}
+	if name != connectSNI && name != "vk.com" && name != "www.google.com" {
+		return nil, errors.New("unsupported WARP TLS strategy name")
+	}
 	privDER, err := base64.StdEncoding.DecodeString(cfg.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("private key: %w", err)
@@ -97,7 +114,7 @@ func TLSConfigFromAccount(cfg *usqueconfig.Config) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return usqueapi.PrepareTlsConfig(privKey, peerPub, cert, connectSNI, false)
+	return usqueapi.PrepareTlsConfig(privKey, peerPub, cert, name, false)
 }
 
 // DialH3 performs the MASQUE-over-HTTP/3 handshake and CONNECT-IP request on udpConn, which the
@@ -111,16 +128,35 @@ func TLSConfigFromAccount(cfg *usqueconfig.Config) (*tls.Config, error) {
 // normal outcome while scanning for a strategy that gets past DPI, and each one used to leak a
 // socket in a long-running root daemon.)
 func DialH3(ctx context.Context, udpConn *net.UDPConn, endpoint *net.UDPAddr, tlsConfig *tls.Config, keepalive, connectTimeout time.Duration) (*Session, error) {
+	return DialH3WithStrategy(ctx, udpConn, endpoint, tlsConfig, keepalive, connectTimeout, nil, nil)
+}
+
+// DialH3WithStrategy owns the socket like DialH3 and sends the requested decoys
+// before each new Initial flight, including one following a server retry.
+func DialH3WithStrategy(ctx context.Context, udpConn *net.UDPConn, endpoint *net.UDPAddr, tlsConfig *tls.Config, keepalive, connectTimeout time.Duration, steps []FakeStep, onApplied func(FakeReport)) (*Session, error) {
+	if err := ValidateFakeSteps(steps); err != nil {
+		_ = udpConn.Close()
+		return nil, atDialPhase("outer_strategy", err)
+	}
 	if connectTimeout <= 0 {
 		connectTimeout = DefaultConnectTimeout
 	}
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	quicConfig := &quic.Config{EnableDatagrams: true, KeepAlivePeriod: keepalive}
+	// The whole dial remains bounded by ctx. The library's separate five-second
+	// idle default must not shorten the timeout selected for this attempt.
+	quicConfig := &quic.Config{EnableDatagrams: true, KeepAlivePeriod: keepalive, HandshakeIdleTimeout: connectTimeout, InitialPacketSize: 1280}
 	// Without ConnectionIDLength set, the backend occasionally throws PROTOCOL_VIOLATION —
 	// confirmed independently by both usque's and Zarp-Android's dial code.
-	qtr := &quic.Transport{Conn: udpConn, ConnectionIDLength: 20}
+	owned := append([]FakeStep(nil), steps...)
+	for i := range owned {
+		owned[i].Blob = append([]byte(nil), owned[i].Blob...)
+	}
+	stats := &quicCounters{started: time.Now()}
+	packets := &initialFakeConn{UDPConn: udpConn, endpoint: endpoint, steps: owned,
+		onApplied: onApplied, flights: make(map[string]bool), batch: ipv4.NewPacketConn(udpConn), stats: stats}
+	qtr := &quic.Transport{Conn: packets, ConnectionIDLength: 20}
 	fail := func(err error) (*Session, error) {
 		_ = qtr.Close()
 		_ = udpConn.Close()
@@ -129,7 +165,7 @@ func DialH3(ctx context.Context, udpConn *net.UDPConn, endpoint *net.UDPAddr, tl
 
 	qconn, err := qtr.Dial(ctx, endpoint, tlsConfig, quicConfig)
 	if err != nil {
-		return fail(wrapDialErr(err))
+		return fail(atDialPhase("quic_handshake", wrapDialErr(err)))
 	}
 
 	tr := &http3.Transport{
@@ -149,17 +185,22 @@ func DialH3(ctx context.Context, udpConn *net.UDPConn, endpoint *net.UDPAddr, tl
 	if err != nil {
 		_ = tr.Close()
 		_ = qconn.CloseWithError(0, "")
-		return fail(wrapDialErr(fmt.Errorf("connect-ip: %w", err)))
+		return fail(atDialPhase("connect_ip", wrapDialErr(fmt.Errorf("connect-ip: %w", err))))
 	}
 	if rsp.StatusCode != http.StatusOK {
 		_ = ipConn.Close()
 		_ = tr.Close()
 		_ = qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("connect-ip: %s", rsp.Status))
+		return fail(atDialPhase("connect_ip", fmt.Errorf("connect-ip: %s", rsp.Status)))
 	}
 
 	return &Session{
 		IPConn: ipConn,
+		// Leave 80 bytes of the initial 1280-byte QUIC packet for connection
+		// IDs, packet number, AEAD tag and both DATAGRAM context prefixes.
+		TCPPacketLimit: 1200,
+		quicStats:      stats,
+		quicCause:      func() error { return context.Cause(qconn.Context()) },
 		closers: []func(){
 			func() { _ = ipConn.Close() },
 			func() { _ = tr.Close() },
@@ -194,6 +235,14 @@ func DialH2(sessionCtx, dialCtx context.Context, dialer *net.Dialer, endpoint *n
 		connectTimeout = DefaultConnectTimeout
 	}
 	reqCtx, reqCancel := context.WithCancel(sessionCtx)
+	// A cancelled HTTP request can return before its dial callback returns its
+	// typed TCP/TLS error. Retain the last observed stage independently of that
+	// error chain, without recording any request headers or certificate data.
+	var phase atomic.Value
+	phase.Store("tcp")
+	reqCtx = httptrace.WithClientTrace(reqCtx, &httptrace.ClientTrace{
+		WroteHeaders: func() { phase.Store("connect_ip") },
+	})
 	var timedOut atomic.Bool
 	timer := time.AfterFunc(connectTimeout, func() {
 		timedOut.Store(true)
@@ -212,9 +261,15 @@ func DialH2(sessionCtx, dialCtx context.Context, dialer *net.Dialer, endpoint *n
 
 	transport := &http2.Transport{
 		DialTLSContext: func(ctx context.Context, network, _ string, _ *tls.Config) (net.Conn, error) {
+			phase.Store("tcp")
+			if endpoint.IP.To4() == nil {
+				network = "tcp6"
+			} else {
+				network = "tcp4"
+			}
 			raw, err := dialer.DialContext(ctx, network, endpoint.String())
 			if err != nil {
-				return nil, err
+				return nil, atDialPhase("tcp", err)
 			}
 			tcpConn, ok := raw.(*net.TCPConn)
 			if !ok {
@@ -225,14 +280,16 @@ func DialH2(sessionCtx, dialCtx context.Context, dialer *net.Dialer, endpoint *n
 			if desync != nil {
 				conn = NewDesyncConn(tcpConn, desync, h2TLSConfig.ServerName)
 			}
+			phase.Store("tls")
 			tlsConn := tls.Client(conn, h2TLSConfig)
 			if err := tlsConn.HandshakeContext(ctx); err != nil {
 				_ = raw.Close()
-				return nil, err
+				return nil, atDialPhase("tls", err)
 			}
 			connMu.Lock()
 			dialed = tlsConn
 			connMu.Unlock()
+			phase.Store("http2")
 			return tlsConn, nil
 		},
 	}
@@ -264,11 +321,11 @@ func DialH2(sessionCtx, dialCtx context.Context, dialer *net.Dialer, endpoint *n
 		switch {
 		case timedOut.Load():
 			// Our own connectTimeout gave up, not the caller's context.
-			err = fmt.Errorf("timeout after %s: %w", connectTimeout, err)
+			err = fmt.Errorf("timeout after %s: %w: %w", connectTimeout, context.DeadlineExceeded, err)
 		case dialCtx.Err() != nil:
-			err = fmt.Errorf("%w (%v)", dialCtx.Err(), err)
+			err = fmt.Errorf("%w: %w", dialCtx.Err(), err)
 		}
-		return fail(wrapDialErr(fmt.Errorf("connect-ip over HTTP/2: %w", err)))
+		return fail(atDialPhase(phase.Load().(string), wrapDialErr(fmt.Errorf("connect-ip over HTTP/2: %w", err))))
 	}
 	if !timerStopped || !dialWatchStopped {
 		// The timeout/cancellation raced the successful return and already cancelled the context
@@ -278,7 +335,7 @@ func DialH2(sessionCtx, dialCtx context.Context, dialer *net.Dialer, endpoint *n
 		if timedOut.Load() {
 			cause = context.DeadlineExceeded
 		}
-		return fail(fmt.Errorf("connect-ip over HTTP/2: dial finished at the moment it was cancelled: %w", cause))
+		return fail(atDialPhase(phase.Load().(string), fmt.Errorf("connect-ip over HTTP/2: dial finished at the moment it was cancelled: %w", cause)))
 	}
 	if rsp.StatusCode != http.StatusOK {
 		_ = ipConn.Close()

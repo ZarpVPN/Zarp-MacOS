@@ -4,13 +4,14 @@ import ServiceManagement
 import SwiftUI
 import ZarpCore
 import ZarpdIPC
+import ZarpSubscriptions
 
 /// Bridges the `ZarpEngine` actor (plus `Localization` and `LogBus`) to SwiftUI state, and owns
 /// the concrete wiring the App target is responsible for.
 ///
-/// `connections`/`probe` default to `ZarpdClient` (docs/ARCHITECTURE.md §5, `zarpd/ipc`) — real
-/// IPC to the `zarpd` LaunchDaemon, installed from Settings via `SMAppService`
-/// (`ZarpdInstaller.swift`). `network` is `SystemNetworkInspector`, the real foreign-VPN check.
+/// `connections`/`probe` default to `ZarpdClient`, using real IPC to the bundled
+/// daemon. AutomaticDaemonCoordinator prepares it through ZarpdInstaller.
+/// `network` is SystemNetworkInspector, the foreign-VPN check.
 ///
 /// Besides forwarding the UI's actions, this type runs the app's heartbeat (`monitorTick`, every few
 /// seconds): it pings the daemon, lets the engine reconcile what it believes with what the daemon
@@ -21,15 +22,26 @@ final class AppViewModel: ObservableObject {
     let engine: ZarpEngine
     let localization: Localization
     let log: LogBus
+    let serverLibrary: ServerLibraryViewModel
 
-    @Published private(set) var state: EngineState = .idle
-    @Published private(set) var detail: Msg = Msg("detail.noStrategy")
+    @Published private(set) var engineState: EngineState = .idle
+    var state: EngineState { preparingConnection && engineState == .idle ? .preparing : engineState }
+    @Published private(set) var engineDetail: Msg = Msg("detail.noStrategy")
+    var detail: Msg {
+        if preparingConnection && engineState == .idle { return Msg("connection.preparing") }
+        if engineState == .idle, let connectionPreparationNotice { return connectionPreparationNotice }
+        return engineDetail
+    }
     @Published private(set) var progressDone: Int = 0
     @Published private(set) var progressTotal: Int = 0
     @Published private(set) var strategies: [Strategy] = []
     @Published private(set) var results: [String: TestResult] = [:]
     @Published private(set) var selectedStrategyId: String?
-    @Published private(set) var isBusy: Bool = false
+    @Published private(set) var engineBusy = false
+    var isBusy: Bool { engineBusy || preparingConnection }
+    @Published private(set) var sources: [ConnectionSource] = []
+    @Published private(set) var sourceID = ""
+    @Published private(set) var connectionMode: ConnectionMode = .warp
     @Published private(set) var settings: AppSettings = AppSettings()
     @Published private(set) var logLines: [LogEntry] = []
     @Published private(set) var languageCode: String = Localization.fallbackCode
@@ -38,23 +50,14 @@ final class AppViewModel: ObservableObject {
     /// both the main window and the menu bar item can trigger and observe it without threading an
     /// extra binding through the Scene hierarchy.
     @Published var showingCloseConfirmation = false
-    /// Set by the menu bar item's "Settings" entry; the main window opens its Settings sheet in
-    /// response and clears it.
+    /// Menu and keyboard requests open the separate settings window, then clear this flag.
     @Published var settingsRequested = false
 
-    /// `zarpd` installed via `SMAppService.daemon` (`ZarpdInstaller.swift`). `daemonState` answers
-    /// "is it *installed*"; `daemonPing`/`daemonPingError` separately answer "is it actually up and
-    /// responding right now" (`ZarpdClient.ping()`) — a daemon can be registered+enabled and still
-    /// not be the one currently listening (crashed and mid-restart, a stale build before a
-    /// re-approval, etc.), so neither signal substitutes for the other.
-    let installer = ZarpdInstaller()
-    @Published private(set) var daemonState: ZarpdInstaller.State = .notInstalled
-    @Published private(set) var daemonPing: PingResult?
-    @Published private(set) var daemonPingError: String?
-    @Published private(set) var daemonActionError: String?
-    /// The running daemon is an older build than this app (it survived an app update). It is
-    /// restarted automatically once when nothing is in progress; this stays true if that didn't help.
-    @Published private(set) var daemonStale = false
+    @Published private(set) var preparingConnection = false
+    @Published private(set) var connectionPreparationNotice: Msg?
+    @Published private(set) var daemonUnavailable = false
+    private var daemonPing: PingResult?
+    private var automaticDaemon: AutomaticDaemonCoordinator?
     /// Whether "Start with macOS" is on (`SMAppService.mainApp`).
     @Published private(set) var autostartEnabled = false
     private let zarpdClient: ZarpdClient?
@@ -63,21 +66,20 @@ final class AppViewModel: ObservableObject {
     private var monitorTask: Task<Void, Never>?
     private var daemonLogCursor: UInt64 = 0
     private var daemonLogPrimed = false
-    private var staleRestartAttempted = false
 
     static let monitorInterval: UInt64 = 4_000_000_000
-    /// Same cap as `LogBus` itself, so the view's copy can't grow without bound in a long session.
-    private static let maxLogLines = 2000
     /// How long quitting waits for a scan to unwind and the tunnel to close before giving up.
     private static let terminationGrace: UInt64 = 8_000_000_000
 
     init(
         settingsStore: SettingsStore, strategyStore: CustomStrategyStore, localization: Localization, log: LogBus,
         connections: WarpConnectionProvider = ZarpdClient(), probe: WarpProbe? = nil,
-        network: NetworkInspector = SystemNetworkInspector()
+        network: NetworkInspector = SystemNetworkInspector(), connectionLibrary: ConnectionLibrary? = nil
     ) {
         self.localization = localization
         self.log = log
+        let library = connectionLibrary ?? ConnectionLibrary(directory: Self.dataDirectory().appendingPathComponent("Connections", isDirectory: true), transport: FoundationSubscriptionTransport())
+        self.serverLibrary = ServerLibraryViewModel(library: library)
         // WarpProbe defaults to the same ZarpdClient instance as WarpConnectionProvider when the
         // caller doesn't pass its own (the common case) — one socket-speaking object, not two —
         // but can't share that default with the `connections` parameter above directly since a
@@ -92,22 +94,37 @@ final class AppViewModel: ObservableObject {
             probe: resolvedProbe,
             network: network,
             log: log,
-            localization: localization
+            localization: localization,
+            connectionLibrary: library
         )
         self.languageCode = localization.currentCode
         self.logLines = log.snapshot()
 
-        log.onAppend = { [weak self] entry in
-            Task { @MainActor in self?.appendLogLine(entry) }
+        log.onAppend = { [weak self] _ in
+            Task { @MainActor in self?.refreshLogLines() }
         }
         localization.onChanged = { [weak self] in
             Task { @MainActor in self?.languageCode = localization.currentCode }
         }
+        #if !ZARP_APPEARANCE_PREVIEW
+        if let client = zarpdClient {
+            let adapter = ZarpdInstaller(client: client, expectedVersion: Self.appVersion)
+            automaticDaemon = makeAutomaticCoordinator(service: adapter)
+        }
+        #endif
     }
 
-    private func appendLogLine(_ entry: LogEntry) {
-        logLines.append(entry)
-        if logLines.count > Self.maxLogLines { logLines.removeFirst(logLines.count - Self.maxLogLines) }
+    private func makeAutomaticCoordinator(service: any AutomaticDaemonService) -> AutomaticDaemonCoordinator {
+        AutomaticDaemonCoordinator(service: service, canReplace: { [weak self] in
+            guard let self else { return false }
+            return self.engineState == .idle && !self.engineBusy
+        }, onEvent: { [log, localization] event in
+            log.write(event.message, using: localization)
+        })
+    }
+
+    private func refreshLogLines() {
+        logLines = log.snapshot()
     }
 
     /// Call once at launch (calling it again is a no-op: SwiftUI's `.task` can re-run when a view
@@ -126,10 +143,10 @@ final class AppViewModel: ObservableObject {
         settings = await engine.currentSettings
         let systemCode = Self.systemLanguageCode()
         localization.setLanguage(localization.resolve(setting: settings.language, systemCode: systemCode))
+        log.write(Msg("log.appStarted", Self.appVersion), using: localization)
         await refresh()
-        refreshDaemonState()
         refreshAutostart()
-        await pingDaemon() // also adopts a tunnel that outlived a previous GUI session
+        _ = await ensureConnectionService()
         isReady = true
         startMonitoring()
         if settings.autoConnectOnStart { await autoConnectOnLaunch() }
@@ -139,7 +156,7 @@ final class AppViewModel: ObservableObject {
     /// going on — an adopted tunnel counts as already connected.
     private func autoConnectOnLaunch() async {
         guard daemonPing != nil else {
-            log.write(localization.string("log.error", ["zarpd is not responding — not connecting automatically"]))
+            log.write(localization.string("connection.prepareFailed"))
             return
         }
         guard state == .idle, !isBusy else { return }
@@ -160,94 +177,56 @@ final class AppViewModel: ObservableObject {
     }
 
     private func monitorTick() async {
+        guard !preparingConnection else { return }
+        await engine.observeNetworkChange()
         await pingDaemon()
         await engine.reconcileConnection()
         await pullDaemonLogs()
-        refreshDaemonState()
-    }
-
-    // MARK: - zarpd daemon install/status
-
-    func refreshDaemonState() {
-        installer.refresh()
-        if daemonState != installer.state { daemonState = installer.state }
-    }
-
-    func installDaemon() {
-        daemonActionError = nil
-        do {
-            try installer.install()
-            daemonState = installer.state
-        } catch let error as ZarpdInstaller.BadInstallLocation {
-            switch error.problem {
-            case .mountedVolume, .translocated: daemonActionError = localization.string("daemon.badLocation")
-            case .notInApplications: daemonActionError = localization.string("daemon.badLocationApplications")
-            }
-        } catch {
-            daemonActionError = String(describing: error)
+        if (daemonUnavailable || daemonNeedsUpdate), automaticDaemon?.canRepairAutomatically == true,
+           engineState == .idle, !engineBusy {
+            _ = await ensureConnectionService()
         }
     }
 
-    func uninstallDaemon() {
-        daemonActionError = nil
-        do {
-            try installer.uninstall()
-            daemonState = installer.state
-        } catch {
-            daemonActionError = String(describing: error)
+    // MARK: - Automatic connection preparation
+
+    func ensureConnectionService(userInitiated: Bool = false) async -> Bool {
+        guard let automaticDaemon else { return !preparingConnection }
+        preparingConnection = true
+        connectionPreparationNotice = nil
+        defer { preparingConnection = false }
+        let result = await automaticDaemon.ensureReady(userInitiated: userInitiated)
+        switch result {
+        case .ready:
+            daemonLogPrimed = false
+            await pingDaemon()
+            return daemonPing != nil
+        case .approvalRequired: connectionPreparationNotice = Msg("connection.permissionRequired")
+        case .moveToApplications: connectionPreparationNotice = Msg("connection.moveToApplications")
+        case .failed: connectionPreparationNotice = Msg("connection.prepareFailed")
+        case .deferred: break
         }
-        daemonPing = nil
+        if result != .deferred { daemonUnavailable = true }
+        return false
     }
 
-    func openDaemonApprovalSettings() {
-        installer.openSystemSettingsLoginItems()
-    }
-
-    /// See `ZarpdClient.restart()`'s doc comment: there's no unprivileged "stop and stay stopped
-    /// but still installed" for a root daemon, so this is what "restart" means here. Re-pings
-    /// after a delay rather than trusting the restart call's own success/failure, since the
-    /// response can race the process actually exiting. A tunnel that was up is closed by the
-    /// restart; the next heartbeat notices (and reconnects, if the user wants that) instead of
-    /// continuing to display "Connected".
-    func restartDaemon() async {
-        guard let zarpdClient else { return }
-        daemonActionError = nil
-        _ = try? await zarpdClient.restart()
-        daemonPing = nil
-        daemonLogPrimed = false
-        try? await Task.sleep(nanoseconds: 800_000_000)
-        await pingDaemon()
-    }
-
-    /// Pings the daemon and records the answer. A ping that succeeds *after one that didn't*
-    /// (including the very first one, at launch — the GUI-relaunch case) also makes the engine adopt
-    /// whatever tunnel the daemon already has running.
-    func pingDaemon() async {
+    private func pingDaemon() async {
         guard let zarpdClient else { return }
         let wasResponding = daemonPing != nil
         do {
-            let ping = try await zarpdClient.ping()
-            daemonPing = ping
-            daemonPingError = nil
+            daemonPing = try await zarpdClient.ping(timeout: 1)
+            daemonUnavailable = false
+            connectionPreparationNotice = nil
             if !wasResponding { await engine.adoptExistingConnection() }
-            await checkDaemonVersion(ping)
         } catch {
             daemonPing = nil
-            daemonPingError = (error as? WarpConnectionError)?.message ?? String(describing: error)
+            daemonUnavailable = true
         }
     }
 
-    /// A daemon left over from before an app update (the LaunchDaemon outlives the app bundle being
-    /// replaced) speaks an older protocol or runs older code. Restart it once, when that can't hurt
-    /// anything in progress; otherwise just say so in Settings.
-    private func checkDaemonVersion(_ ping: PingResult) async {
-        let stale = ping.effectiveProtocol < ZarpdClient.protocolVersion
-            || (ping.version != "dev" && ping.version != Self.appVersion)
-        if stale != daemonStale { daemonStale = stale }
-        guard stale, !staleRestartAttempted, state == .idle, !isBusy else { return }
-        staleRestartAttempted = true
-        log.write(localization.string("daemon.restartingStale", [ping.version, Self.appVersion]))
-        await restartDaemon()
+    private var daemonNeedsUpdate: Bool {
+        guard let ping = daemonPing else { return false }
+        return ping.effectiveProtocol < ZarpdClient.protocolVersion || (ping.version != "dev" && ping.version != Self.appVersion)
     }
 
     static var appVersion: String {
@@ -285,12 +264,15 @@ final class AppViewModel: ObservableObject {
     // MARK: - Start with macOS (SMAppService.mainApp)
 
     func refreshAutostart() {
+        #if !ZARP_APPEARANCE_PREVIEW
         let status = SMAppService.mainApp.status
         let on = status == .enabled || status == .requiresApproval
         if autostartEnabled != on { autostartEnabled = on }
+        #endif
     }
 
     func setAutostart(_ enabled: Bool) {
+        #if !ZARP_APPEARANCE_PREVIEW
         do {
             if enabled {
                 try SMAppService.mainApp.register()
@@ -303,6 +285,7 @@ final class AppViewModel: ObservableObject {
             log.write(localization.string("log.autostartFailed", [error.localizedDescription]))
         }
         refreshAutostart()
+        #endif
     }
 
     // MARK: - Engine state
@@ -315,34 +298,66 @@ final class AppViewModel: ObservableObject {
 
     private func refresh() async {
         let snapshot = await engine.snapshot()
-        state = snapshot.state
-        detail = snapshot.detail
+        engineState = snapshot.state
+        engineDetail = snapshot.detail
         progressDone = snapshot.progressDone
         progressTotal = snapshot.progressTotal
         strategies = snapshot.strategies
         results = snapshot.results
         selectedStrategyId = snapshot.selectedStrategyId
-        isBusy = snapshot.isBusy
+        engineBusy = snapshot.isBusy
+        sources = snapshot.sources
+        sourceID = snapshot.sourceID
+        connectionMode = snapshot.mode
+    }
+
+    func reloadSources() {
+        #if !ZARP_APPEARANCE_PREVIEW
+        Task { await engine.refreshSources(); await refresh() }
+        #endif
+    }
+    func selectSource(_ id: String) { Task { _ = await engine.selectSource(id); await refresh() } }
+
+    func configureConnection(useServer: Bool, input: String, source: String?, endpoints: [String], policy: ServerRoutingPolicy) async -> Msg? {
+        do {
+            try await engine.configureConnection(useServer: useServer, input: input, source: source, endpoints: endpoints, policy: policy)
+            await refresh()
+            await serverLibrary.load()
+            return nil
+        } catch is CancellationError {
+            await refresh(); return Msg("sources.cancelled")
+        } catch let error as ConnectionLibraryError {
+            await refresh()
+            return Msg(error == .emptyConfiguration ? "connection.noServer" : error == .busy ? "sources.busyError" : "sources.formatError")
+        } catch let error as ConnectionContractError {
+            await refresh(); return Msg(error.field == .routing ? "routing.invalid" : "sources.formatError")
+        } catch {
+            await refresh(); return ServerLibraryViewModel.configurationNotice(error)
+        }
     }
 
     // MARK: - Actions (fire-and-forget from the UI's point of view; state updates arrive via `refresh()`)
 
     func connectButtonTapped() {
-        if isBusy {
-            Task { await engine.cancel() }
-            return
-        }
-        if state == .connected {
-            Task { _ = await engine.disconnect() }
-        } else {
-            Task { _ = await engine.connect() }
+        guard !preparingConnection else { return }
+        if engineBusy { Task { await engine.cancel() }; return }
+        if state == .connected { Task { _ = await engine.disconnect() }; return }
+        performConnectionAction { await self.engine.connect() }
+    }
+
+    private func performConnectionAction(_ action: @escaping @MainActor () async -> Bool) {
+        guard isReady, !isBusy else { return }
+        Task {
+            guard await ensureConnectionService(userInitiated: true) else { return }
+            connectionPreparationNotice = nil
+            _ = await action()
         }
     }
 
-    func quickScan() { Task { _ = await engine.search(full: false) } }
-    func fullScan() { Task { _ = await engine.search(full: true) } }
-    func testSelected(_ items: [Strategy]) { Task { _ = await engine.testStrategies(items) } }
-    func use(_ strategy: Strategy) { Task { _ = await engine.use(strategy) } }
+    func quickScan() { performConnectionAction { await self.engine.search(full: false) } }
+    func fullScan() { performConnectionAction { await self.engine.search(full: true) } }
+    func testSelected(_ items: [Strategy]) { performConnectionAction { await self.engine.testStrategies(items) } }
+    func use(_ strategy: Strategy) { performConnectionAction { await self.engine.use(strategy) } }
     func cancel() { Task { await engine.cancel() } }
 
     /// The text for the custom-strategies editor.
@@ -367,7 +382,7 @@ final class AppViewModel: ObservableObject {
         var s = settings
         mutate(&s)
         settings = s
-        Task { await engine.updateSettings(s) }
+        Task { await engine.updateSettings(s); await refresh() }
         if let lang = s.language {
             localization.setLanguage(lang)
         }
@@ -422,7 +437,9 @@ final class AppViewModel: ObservableObject {
     /// Bounded: a daemon that has stopped answering must not be able to keep the app from quitting
     /// (or a logout from completing), so after a grace period the app goes ahead regardless.
     func prepareForTermination() async {
+        await automaticDaemon?.stop()
         monitorTask?.cancel()
+        await serverLibrary.close()
         let engine = self.engine
         let disconnect = settings.disconnectOnExit
         let grace = Self.terminationGrace
@@ -521,3 +538,86 @@ private final class OneShot: @unchecked Sendable {
         return true
     }
 }
+
+#if ZARP_APPEARANCE_PREVIEW
+// Compiled only into the isolated appearance fixture, never the app target.
+@MainActor
+extension AppViewModel {
+    func appearanceReportStartupFailure() async -> Bool {
+        let previous = automaticDaemon
+        defer { automaticDaemon = previous }
+        automaticDaemon = makeAutomaticCoordinator(service: AppearanceFailedRegistration())
+        return await ensureConnectionService(userInitiated: true)
+    }
+
+    func appearanceAutomaticPreparation(_ preparing: Bool, notice: Msg? = nil) {
+        preparingConnection = preparing
+        connectionPreparationNotice = notice
+        daemonUnavailable = preparing || notice != nil
+    }
+
+    func appearanceMainState(detail: Msg, selectedStrategyId: String? = nil) {
+        self.engineDetail = detail
+        self.selectedStrategyId = selectedStrategyId
+    }
+
+    func appearanceServerFixture() {
+        let source = try! ConnectionSource(kind: .manual)
+        let profile = try! ServerLinkImporter.parse("trojan://appearance-fixture@server.example:443?security=tls#Example")
+        sources = [try! ConnectionSource(kind: .warp), source]
+        sourceID = source.id
+        connectionMode = .server
+        strategies = ServerPairs.build(strategies: StrategyCatalog.builtIn, profiles: [profile], sourceID: source.id)
+        results = [:]
+        settings.serverRouting.applicationMode = .include
+        settings.serverRouting.applicationPaths = ["/Applications/Example Browser.app"]
+    }
+
+    static func appearanceFixture(directory: URL, languages: URL, language: String) -> AppViewModel {
+        let localization = Localization.load(languageFilesDirectory: languages)
+        localization.setLanguage(language)
+        let provider = AppearanceProvider()
+        let library = ConnectionLibrary(directory: directory, transport: AppearanceTransport())
+        let model = AppViewModel(settingsStore: InMemorySettingsStore(), strategyStore: InMemoryCustomStrategyStore(),
+                                 localization: localization, log: LogBus(maxEntries: 20), connections: provider, probe: provider,
+                                 network: UnimplementedNetworkInspector(), connectionLibrary: library)
+        model.started = true
+        model.isReady = true
+        model.strategies = StrategyCatalog.builtIn
+        let source = try! ConnectionSource(kind: .warp)
+        model.sources = [source]
+        model.sourceID = source.id
+        if let first = model.strategies.first {
+            model.results[first.id] = TestResult(strategyId: first.id, ok: true, connectMs: 338, pingMs: 39, confirmed: true)
+        }
+        if model.strategies.count > 1 {
+            let id = model.strategies[1].id
+            model.results[id] = .failed(strategyId: id, error: Msg("err.timeout", "15"))
+        }
+        return model
+    }
+}
+
+private struct AppearanceTransport: SubscriptionHTTPTransport {
+    func get(url: URL, userAgent: String, deadline: ContinuousClock.Instant) async throws -> SubscriptionHTTPResponse { throw SubscriptionError.network }
+}
+private struct AppearanceProvider: WarpConnectionProvider, WarpProbe, WarpAccountProvider {
+    func open(strategy: Strategy, endpoint: String?, timeoutMs: Int, persistent: Bool, routing: TunnelRouting) async throws -> any WarpConnectionHandle { throw WarpConnectionError("appearance fixture has no network") }
+    func connectionSnapshot() async throws -> ConnectionSnapshot { ConnectionSnapshot(live: nil) }
+    func isAccountRegistered() async throws -> Bool { true }
+    func registerAccount() async throws { throw WarpConnectionError("appearance fixture has no account API") }
+    func measure(connection: any WarpConnectionHandle, samples: Int) async throws -> WarpMeasurement { throw WarpConnectionError("appearance fixture has no network") }
+    func readWarpAccount() async throws -> WarpAccountStatus { WarpAccountStatus(accountType: .free, licenseApplied: false) }
+    func applyWarpLicense(_ key: String) async throws -> WarpAccountStatus { throw WarpConnectionError("appearance fixture has no account API") }
+}
+
+@MainActor
+private final class AppearanceFailedRegistration: AutomaticDaemonService {
+    var registrationStatus: DaemonRegistrationStatus = .enabled
+    func health() async -> DaemonServiceHealth { .unreachable }
+    func validateLocation() throws {}
+    func unregisterForRecovery() async throws { registrationStatus = .missing }
+    func registerForRecovery() throws { throw NSError(domain: "SMAppServiceErrorDomain", code: 1) }
+    func openApprovalSettings() {}
+}
+#endif

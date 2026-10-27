@@ -29,6 +29,15 @@ func TestOpenParamsValidate(t *testing.T) {
 	}{
 		{name: "valid H3 with fakes", base: good},
 		{name: "valid H2 with split", base: h2},
+		{name: "QUIC strategy with vk name", base: good, mutate: func(p *OpenParams) { p.WarpTLSName = "vk.com" }},
+		{name: "TCP strategy with google name", base: h2, mutate: func(p *OpenParams) { p.WarpTLSName = "www.google.com" }},
+		{name: "name alone cannot authorize plain WARP", base: good, mutate: func(p *OpenParams) { p.WarpTLSName = "vk.com"; p.FakeSteps = nil }, wantCode: CodeStrategyRequired},
+		{name: "arbitrary strategy name refused", base: good, mutate: func(p *OpenParams) { p.WarpTLSName = "arbitrary.example" }, wantCode: CodeBadRequest},
+		{name: "strategy name injection refused", base: good, mutate: func(p *OpenParams) { p.WarpTLSName = "vk.com\nother: value" }, wantCode: CodeBadRequest},
+		{name: "WARP name cannot alter server authentication", base: h2, mutate: func(p *OpenParams) { p.Mode = "server"; p.WarpTLSName = "vk.com" }, wantCode: CodeBadRequest},
+		{name: "plain H3 refused", base: good, mutate: func(p *OpenParams) { p.FakeSteps = nil }, wantCode: CodeStrategyRequired},
+		{name: "plain H2 refused", base: h2, mutate: func(p *OpenParams) { p.TCPDesync = nil }, wantCode: CodeStrategyRequired},
+		{name: "legacy direct ID cannot authorize plain", base: good, mutate: func(p *OpenParams) { p.StrategyID = "direct"; p.FakeSteps = nil }, wantCode: CodeStrategyRequired},
 		{name: "empty transport means H3", base: good, mutate: func(p *OpenParams) { p.Transport = "" }},
 		{name: "valid persistent full tunnel with DNS", base: good, mutate: func(p *OpenParams) {
 			p.Persistent, p.RouteAll, p.OverrideDNS = true, true, true

@@ -23,10 +23,10 @@ import ZarpCore
 /// - **Cancellation.** If the calling task is cancelled (the user pressed Cancel), the socket is shut
 ///   down under the blocked `read`, the call throws, and the daemon — seeing the client vanish —
 ///   abandons an `open` that is still dialing (and closes one that finished too late).
-public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Sendable {
+public final class ZarpdClient: WarpConnectionProvider, WarpProbe, WarpAccountProvider, WarpAccountSetupProvider, @unchecked Sendable {
     /// The IPC protocol version this build speaks (`zarpd/ipc.ProtocolVersion`). A daemon reporting
     /// an older one is a stale leftover from before an app update.
-    public static let protocolVersion = 2
+    public static let protocolVersion = 3
 
     /// Where the installed daemon listens. A *debug* build honors `ZARP_SOCKET`, so development can
     /// point the app at a daemon of its own without touching the installed one; a release build never
@@ -61,13 +61,53 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
         if let reason = strategy.unsupportedReason {
             throw WarpConnectionError("strategy not supported (\(reason.key))", code: "unsupported")
         }
+        if let profile = strategy.serverProfile {
+            let current = try await ping()
+            guard let capabilities = current.runtimeCapabilities,
+                  (try? capabilities.require(mode: .server, profile: profile)) != nil,
+                  let sourceID = strategy.sourceID, strategy.requiresDesync else {
+                throw WarpConnectionError("server mode requires updated daemon capabilities and an outer strategy", code: "unsupported")
+            }
+            let plan = strategy.plan
+            let policy = persistent && routing.routeAll ? routing.serverPolicy : nil
+            if let policy {
+                try policy.validate()
+                guard current.serverRoutingVersion == 1 else {
+                    throw WarpConnectionError("update the Zarp daemon to use application routing", code: "unsupported")
+                }
+            }
+            let params = ServerOpenParams(profile: profile, sourceId: sourceID, strategyId: strategy.id,
+                                          fakeSteps: plan.fakeSteps.map(FakeStepWire.init), tcpDesync: plan.tcpDesync.map(TCPDesyncWire.init),
+                                          timeoutMs: timeoutMs, persistent: persistent, routeAll: persistent && routing.routeAll,
+                                          overrideDNS: persistent && routing.overrideDNS, allowPlain: false, routingPolicy: policy)
+            let result: OpenResult = try await call("openServer", params, timeout: TimeInterval(timeoutMs) / 1000 + 25)
+            return ZarpdConnectionHandle(client: self, id: result.connectionId, connectMs: result.connectMs,
+                                        endpoint: result.endpoint, warnings: result.warnings ?? [], mode: .server)
+        }
+        let custom = endpoint?.hasPrefix("custom:") == true
+        let address = custom ? String(endpoint!.dropFirst("custom:".count)) : endpoint ?? ""
+        if custom {
+            guard WarpEndpoint(address) != nil else { throw WarpConnectionError("invalid custom WARP endpoint", code: "bad_request") }
+            let current = try await ping()
+            guard current.effectiveProtocol >= Self.protocolVersion else {
+                throw WarpConnectionError("custom WARP endpoints require protocol 3", code: "unsupported")
+            }
+        }
         let plan = strategy.plan
+        if strategy.warpTLSName != nil {
+            let current = try await ping()
+            guard current.warpTLSNameVersion == 1 else {
+                throw WarpConnectionError("WARP TLS name requires an updated daemon", code: "unsupported")
+            }
+        }
         let params = OpenParams(
+            endpointPolicy: custom ? "customWarp" : nil,
             transport: strategy.transport.wireName,
             strategyId: strategy.id,
             fakeSteps: plan.fakeSteps.map(FakeStepWire.init),
             tcpDesync: plan.tcpDesync.map(TCPDesyncWire.init),
-            endpoint: endpoint ?? "",
+            warpTLSName: strategy.warpTLSName?.rawValue,
+            endpoint: address,
             timeoutMs: timeoutMs,
             persistent: persistent,
             routeAll: persistent && routing.routeAll,
@@ -87,27 +127,67 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
     /// or was quit and relaunched, zarpd wasn't touched at all), or the loss of one it believed in.
     public func connectionSnapshot() async throws -> ConnectionSnapshot {
         let status: StatusResult = try await call("status", EmptyParams())
+        guard let mode = ConnectionMode(rawValue: status.activeMode ?? "warp") else {
+            throw WarpConnectionError("unknown active connection mode", code: "unsupported")
+        }
+        if mode == .server, status.connected {
+            guard let source = status.sourceId, source.hasPrefix("source-v1-"), source.count == 74,
+                  let server = status.serverId, server.hasPrefix("server-v1-"), server.count == 74,
+                  status.strategyId?.hasSuffix("@" + server) == true else {
+                throw WarpConnectionError("invalid active server identity", code: "bad_response")
+            }
+        }
         let loss = status.lastLoss.map { ConnectionLoss(connectionId: $0.connectionId, reason: $0.reason) }
         guard status.connected, let connectionId = status.connectionId else {
             return ConnectionSnapshot(live: nil, lastLoss: loss)
         }
         let handle = ZarpdConnectionHandle(
-            client: self, id: connectionId, connectMs: status.connectMs ?? 0, endpoint: status.endpoint, warnings: []
+            client: self, id: connectionId, connectMs: status.connectMs ?? 0, endpoint: status.endpoint, warnings: [], mode: mode
         )
         // A daemon that omits the field predates it, and every persistent connection such a daemon
         // made carried only the test route.
-        let live = LiveConnectionStatus(handle: handle, strategyId: status.strategyId, routeAll: status.routeAll ?? false)
+        let live = LiveConnectionStatus(handle: handle, strategyId: status.strategyId, routeAll: status.routeAll ?? false,
+                                        sourceID: status.sourceId, serverID: status.serverId)
         return ConnectionSnapshot(live: live, lastLoss: nil)
     }
 
     public func isAccountRegistered() async throws -> Bool {
         let ping = try await self.ping()
-        return ping.accountRegistered ?? false
+        if let state = ping.warpAccountState {
+            switch state {
+            case "ready": return true
+            case "missing", "pending": return false
+            case "uncertain": throw WarpConnectionError("registration outcome is uncertain", code: "account_uncertain")
+            default: throw WarpConnectionError("existing account cannot be read safely", code: "account_unavailable")
+            }
+        }
+        guard let registered = ping.accountRegistered else {
+            throw WarpConnectionError("account state is unavailable", code: "unsupported")
+        }
+        return registered
     }
 
     public func registerAccount() async throws {
         // Registration is a round trip to Cloudflare from the daemon (which itself waits up to 60s).
         let _: RegisterResult = try await call("register", EmptyParams(), timeout: 75)
+    }
+
+    public func readWarpAccount() async throws -> WarpAccountStatus {
+        try await requireWarpPlus()
+        return try await call("warpAccount", EmptyParams(), timeout: 30)
+    }
+
+    public func applyWarpLicense(_ key: String) async throws -> WarpAccountStatus {
+        guard WarpLicense.isValid(key) else { throw WarpConnectionError("invalid WARP+ license format", code: "bad_request") }
+        try await requireWarpPlus()
+        struct Params: Encodable { let license: String }
+        return try await call("warpLicense", Params(license: key), timeout: 30)
+    }
+
+    private func requireWarpPlus() async throws {
+        guard try await ping().warpPlusSupported == true else {
+            throw WarpConnectionError("WARP+ requires an updated daemon", code: "unsupported")
+        }
     }
 
     /// Closing is cleanup, and cleanup must still happen when the task that asked for it has been
@@ -122,12 +202,17 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
         }.value
     }
 
-    /// Cheap, side-effect-free liveness/version check — distinct from `ZarpdInstaller.state`, which
-    /// only answers "is it installed", not "is it actually up and answering right now". Throws the
-    /// same `WarpConnectionError` as any other call — most commonly "connect(...): No such file or
-    /// directory" when `zarpd` isn't running at all.
-    public func ping() async throws -> PingResult {
-        try await call("ping", EmptyParams(), timeout: 5)
+    /// Side-effect-free liveness/version check, independent of OS registration.
+    /// Unavailable or timed-out IPC returns a typed WarpConnectionError.
+    public func ping(timeout: TimeInterval = 5) async throws -> PingResult {
+        try await call("ping", EmptyParams(), timeout: max(0.1, min(5, timeout)))
+    }
+
+    /// Version replacement requires explicit idle metadata. An old or incomplete
+    /// reply cannot authorize stopping a daemon with unknown network activity.
+    public func isIdleForUpdate() async throws -> Bool {
+        let status: StatusResult = try await call("status", EmptyParams(), timeout: 1)
+        return status.daemonRunning && !status.connected && status.networkBusy == false
     }
 
     /// Asks zarpd to exit non-zero, which the installed LaunchDaemon's `KeepAlive: {SuccessfulExit:
@@ -166,7 +251,7 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
 
     // MARK: - Wire I/O
 
-    private func call<Params: Encodable, Result: Decodable>(_ method: String, _ params: Params, timeout: TimeInterval = 10) async throws -> Result {
+    func call<Params: Encodable, Result: Decodable>(_ method: String, _ params: Params, timeout: TimeInterval = 10) async throws -> Result {
         let id = UInt64.random(in: 1...UInt64.max)
         let requestData = try JSONEncoder().encode(Request(id: id, method: method, params: params))
         let pending = PendingCall()
@@ -189,7 +274,7 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
         }
         let response = try JSONDecoder().decode(Response<Result>.self, from: responseData)
         if let error = response.error {
-            throw WarpConnectionError(error.message, timedOut: error.timedOut, code: error.code)
+            throw WarpConnectionError(error.message, timedOut: error.timedOut, code: error.code, connection: error.connection)
         }
         guard let result = response.result else {
             throw WarpConnectionError("zarpd returned neither a result nor an error for \(method)")
@@ -239,7 +324,7 @@ public final class ZarpdClient: WarpConnectionProvider, WarpProbe, @unchecked Se
         }
         guard connectResult == 0 else {
             if pending.isCancelled { throw cancelled }
-            throw WarpConnectionError("connect(\(socketPath)): \(String(cString: strerror(errno))) — is zarpd running?", code: "daemon_unreachable")
+            throw WarpConnectionError("Zarp background service is unavailable", code: "daemon_unreachable")
         }
 
         afterConnect?()
@@ -336,13 +421,15 @@ private final class ZarpdConnectionHandle: WarpConnectionHandle {
     let connectMs: Int
     let endpoint: String?
     let warnings: [String]
+    let mode: ConnectionMode
 
-    init(client: ZarpdClient, id: String, connectMs: Int, endpoint: String?, warnings: [String]) {
+    init(client: ZarpdClient, id: String, connectMs: Int, endpoint: String?, warnings: [String], mode: ConnectionMode = .warp) {
         self.client = client
         self.id = id
         self.connectMs = connectMs
         self.endpoint = endpoint
         self.warnings = warnings
+        self.mode = mode
     }
 
     func close() async {
@@ -368,6 +455,7 @@ private struct ErrorInfo: Decodable {
     let message: String
     let timedOut: Bool
     let code: String?
+    let connection: ConnectionFailureContext?
 }
 
 private struct EmptyResult: Decodable {}
@@ -381,10 +469,17 @@ public struct PingResult: Decodable, Sendable {
     public let pid: Int
     public let protocolVersion: Int?
     public let accountRegistered: Bool?
+    public let runtimeCapabilities: RuntimeCapabilities?
+    public let warpPlusSupported: Bool?
+    public let serverRoutingVersion: Int?
+    public let accountSetupVersion: Int?
+    public let warpAccountState: String?
+    public let warpTLSNameVersion: Int?
 
     private enum CodingKeys: String, CodingKey {
-        case version, pid, accountRegistered
+        case version, pid, accountRegistered, runtimeCapabilities, warpPlusSupported, serverRoutingVersion, accountSetupVersion, warpAccountState
         case protocolVersion = "protocol"
+        case warpTLSNameVersion
     }
 
     /// The protocol the daemon speaks; a daemon that doesn't report one predates versioning.
@@ -414,11 +509,27 @@ private struct RegisterResult: Decodable {
     let accountRegistered: Bool
 }
 
+private struct ServerOpenParams: Encodable {
+    let profile: ServerProfile
+    let sourceId: String
+    let strategyId: String
+    let fakeSteps: [FakeStepWire]
+    let tcpDesync: TCPDesyncWire?
+    let timeoutMs: Int
+    let persistent: Bool
+    let routeAll: Bool
+    let overrideDNS: Bool
+    let allowPlain: Bool
+    let routingPolicy: ServerRoutingPolicy?
+}
+
 private struct OpenParams: Encodable {
+    let endpointPolicy: String?
     let transport: String
     let strategyId: String
     let fakeSteps: [FakeStepWire]
     let tcpDesync: TCPDesyncWire?
+    let warpTLSName: String?
     let endpoint: String
     let timeoutMs: Int
     let persistent: Bool
@@ -464,6 +575,10 @@ private struct LossInfoWire: Decodable {
 
 /// Mirrors zarpd/ipc/protocol.go's StatusResult.
 private struct StatusResult: Decodable {
+    let networkBusy: Bool?
+    let activeMode: String?
+    let serverId: String?
+    let sourceId: String?
     let daemonRunning: Bool
     let connected: Bool
     let connectionId: String?

@@ -1,7 +1,7 @@
 # Zarp：简体中文。键名与 en.txt 相同。
 
 # ---- 主窗口
-main.subtitle = 在封锁 WARP 的网络中使用 Cloudflare WARP
+main.subtitle = 通过 zapret2 连接 Cloudflare WARP
 main.settingsTip = 设置与策略
 main.languageTip = 语言
 main.logShow = 日志 ▾
@@ -42,7 +42,7 @@ close.exit = 退出程序
 
 # ---- 设置
 settings.strategy = 策略
-settings.explain = 双击或点击“使用”即可启用策略。✔ 当前策略，✔✔ 已通过两次独立检测。
+settings.explain = 点击“使用”切换策略。✔ 表示当前策略，✔✔ 表示两次新连接成功。端点独立性见提示。
 settings.options = 选项
 settings.directTip = 不使用 zapret 的 WARP
 col.strategy = 策略
@@ -55,7 +55,7 @@ btn.testSelected = 检测所选
 btn.quickScan = 快速查找
 btn.fullScan = 完整查找
 btn.cancel = 取消
-tip.quickScan = 找到 {0} 个可用策略后停止（可在选项中设置）
+tip.quickScan = 找到 {0} 个已确认策略后停止（在选项中设置）
 tip.fullScan = 检测全部 {0} 个策略。耗时更长，但不会遗漏
 btn.custom = 自定义策略...
 btn.dataFolder = 数据文件夹
@@ -68,7 +68,7 @@ opt.closeTray = 隐藏到菜单栏
 opt.closeExit = 退出程序
 opt.closeAccessible = 关闭窗口时的操作
 opt.disconnectOnExit = 退出时断开 WARP
-opt.isolate = 隔离检测（每次使用新端点）
+opt.isolate = 测试时轮换默认端点列表
 opt.timeout = 连接等待时间（秒）
 opt.stopAfter = 快速查找：找到几个\n可用策略后停止
 
@@ -78,7 +78,6 @@ result.works1 = 可用（1 次检测）
 result.notConfirmed = 未确认：{0}
 result.applyFailed = 应用时连接失败
 
-strategy.direct = 直接连接（不使用 desync）
 
 # ---- 按钮下方的状态
 detail.disconnecting = 正在断开...
@@ -116,7 +115,7 @@ log.testFail = ✘ {0}：{1}
 log.recheck = 待复查的候选策略：{0}
 log.recheckOk = ✔✔ {0}：已确认（连接 {1} 毫秒，延迟 {2} 毫秒）
 log.candidatesFailed = 候选策略未通过复查，可能只是偶然成功。请重新查找或增加等待时间。
-log.noneWorked = 没有可用的策略。请在设置中增加等待时间，或在 {0} 中添加自定义策略
+log.noneWorked = 没有策略通过流量验证。请选择已配置的服务器，或在 {0} 中添加兼容策略。
 log.best = 最佳策略：{0}（连接 {1} 毫秒，延迟 {2} 毫秒）
 log.tryNext = “{0}”未能连接，正在尝试下一个。
 log.connectingWith = 正在使用策略连接：{0}
@@ -134,30 +133,11 @@ log.configBroken = 设置已损坏，将使用默认值：{0}
 log.configSaveFailed = 无法保存设置：{0}
 
 # ---- 不可用的策略
-strategy.directH2 = 通过 HTTP/2 直接连接（不使用 desync）
 strategy.badSyntax = {0}
 strategy.unknownFeature = 需要的不只是伪造数据包或简单的 TCP 拆分（{0}）— macOS 上暂不可用
 strategy.badsum = 需要通过原始套接字篡改校验和 — macOS 上暂不可用
 
-# ---- zarpd 服务
-daemon.title = zarpd 服务
-daemon.notInstalled = 未安装
-daemon.requiresApproval = 已安装 — 需要在“系统设置”中批准
-daemon.enabled = 已安装
-daemon.notFound = 未找到 — 请尝试重新安装 Zarp
-daemon.unknown = 未知状态（{0}）
-daemon.respondingYes = 正常响应（版本 {0}，pid {1}）
-daemon.respondingNo = 无响应：{0}
-daemon.respondingUnknown = 检查中...
-daemon.badLocation = Zarp 正从磁盘映像或临时下载位置运行，一旦该位置消失，后台服务就会停止工作。请将 Zarp 拖入“应用程序”文件夹，推出磁盘映像，从“应用程序”中打开 Zarp，然后再次点击“安装”。
-daemon.install = 安装
-daemon.restart = 重新启动
-daemon.uninstall = 卸载
-daemon.openSettings = 打开“系统设置”…
 daemon.refresh = 刷新
-daemon.badLocationApplications = 只有当 Zarp 位于“应用程序”文件夹中时，才能安装其后台服务：该服务以管理员权限运行，不能放在普通程序可以修改的位置。请将 Zarp 拖入“应用程序”文件夹，从那里打开，然后再次点击“安装”。
-daemon.stale = 正在运行的服务版本为 {0}，而此应用版本为 {1}。请点击“重新启动”进行更新。
-daemon.restartingStale = zarpd 服务版本为 {0}，而应用版本为 {1}：正在重新启动服务以更新。
 
 # ---- 连接中断、WARP 账户
 detail.connectionLost = 连接已断开
@@ -169,7 +149,7 @@ log.reconnecting = 正在重新连接（{0}/{1}），策略“{2}”...
 log.reconnectGiveUp = 无法自动重新连接。请按下按钮重新连接。
 log.unsupportedStrategy = “{0}”在 macOS 上不可用：{1}
 log.customSaveFailed = 无法保存 {0}：{1}
-err.daemonGone = zarpd 服务不再响应
+err.daemonGone = 连接已中断。
 err.unknownLoss = 隧道消失了（未报告原因）
 err.foreignVpn = 另一个 VPN 或代理占用了默认路由。请先将其关闭，然后重新连接。
 err.noAccount = 尚未注册 WARP 账户。
@@ -191,3 +171,159 @@ opt.reconnect = 连接中断时自动重新连接
 btn.save = 保存
 custom.skipped = 已保存。有 {0} 行无法识别，已跳过（格式：名称 | h3/h2/wg | 参数）：
 custom.saveFailed = 无法保存 {0}：{1}
+
+# Country selection and connection evidence
+strategy.countries = 国家
+strategy.allCountries = 全部
+strategy.countryHint = 国家标签仅用于策略分类，不能证明对您的网络运营商有效。
+result.independent = 已在不同端点上确认
+result.freshOnly = 两次连接成功；尚未确认端点独立性
+
+# Custom WARP endpoints
+settings.endpoints = WARP 端点
+settings.endpointHelp = 每行一个公共数字 IPv4:端口或 [IPv6]:端口。注释以 # 开头，最多 64 个地址。留空使用默认列表。修改列表会清除之前的结果。
+settings.singleEndpoint = 仅一个端点：新连接不能证明端点独立性。
+err.endpointList = 第 {0} 行的端点列表无效。请使用公共数字 IP 和 1-65535 端口。
+btn.resetEndpoints = 重置端点
+# Server library and explicit subscription downloads
+sources.title = 服务器与订阅
+sources.done = 完成
+sources.runtimePending = 在主窗口选择来源，然后连接或搜索兼容的服务器与策略组合。
+sources.empty = 尚未保存服务器。请在下方导入链接或添加订阅。
+sources.source = 来源
+sources.refresh = 刷新
+sources.delete = 删除
+sources.server = 服务器
+sources.address = 地址
+sources.select = 保存选择
+sources.automatic = 自动
+sources.lastUpdate = 更新时间：{0}
+sources.missingSelection = 已保存的服务器不在此列表中。请选择服务器或自动模式。
+sources.importTitle = 导入服务器链接
+sources.importHelp = 粘贴 VLESS、Trojan 或 Hysteria2 链接，每行一个。凭据将保存在私有文件中。
+sources.import = 导入
+sources.subscriptionTitle = 添加订阅或修改名称
+sources.label = 名称（可选）
+sources.url = HTTPS 订阅地址
+sources.saveHelp = 保存仅将地址存储在本地。刷新会通过当前连接下载；失败时保留上次成功下载的列表。
+sources.refreshing = 正在刷新订阅...
+sources.manual = 已导入的服务器
+sources.subscription = 订阅 {0}
+sources.imported = 已导入 {0} 个服务器；跳过 {1} 项。
+sources.saved = 订阅已保存。请点击刷新以下载服务器列表。
+sources.updated = 已更新 {0} 个服务器；跳过 {1} 项。
+sources.deleted = 已删除。
+sources.selectionSaved = 服务器选择已保存。
+sources.cancelled = 已取消刷新。
+sources.deleteTitle = 删除订阅？
+sources.deleteHelp = 删除此订阅及其已下载的服务器列表？
+sources.networkError = 下载失败。已保存的服务器列表仍可使用。
+sources.tlsError = 无法验证订阅的 TLS 证书。
+sources.timeoutError = 订阅请求超时。
+sources.sizeError = 订阅超过大小限制。
+sources.busyError = 此订阅正在刷新。
+sources.formatError = 未找到受支持的服务器链接。已保留保存的列表。
+sources.httpError = 订阅返回 HTTP {0}。已保留保存的列表。
+sources.invalid = 无效字段：{0}。请检查输入的配置。
+sources.storageError = 无法读取或保存服务器私有数据。请检查数据文件夹权限。
+
+# WARP+ account management (Windows Zarp MIT strings, macOS account lifecycle)
+warpPlus.title = WARP+
+warpPlus.hint = 使用已有的 WARP+ 订阅。在手机 1.1.1.1 应用的“设置 > 账户”中复制密钥。照常通过 Zarp 连接：所选 zapret2 策略同样适用于 WARP+。
+warpPlus.account = 账户：{0}
+warpPlus.key = WARP+ 许可证密钥
+warpPlus.privacy = 密钥会发送到 Cloudflare 以绑定 Zarp 账户。Zarp 不会保存密钥或将其写入日志。
+warpPlus.invalid = 密钥应由三组八位英文字母或数字组成，各组之间用连字符分隔。
+warpPlus.loading = 正在读取 WARP 账户...
+warpPlus.applying = 正在应用 WARP+ 许可证...
+warpPlus.applied = WARP+ 已关联此设备。请通过 Zarp 重新连接以使用更新后的账户。
+warpPlus.unconfirmed = WARP 已接受密钥，但无法确认 WARP+。请刷新账户并检查订阅，然后重新连接。
+warpPlus.applyFailed = 无法应用密钥。请检查订阅、设备数量限制及 Cloudflare 连接，然后重试。
+warpPlus.accountFailed = 无法读取账户。请检查是否能够访问 Cloudflare，然后重试。
+warpPlus.timeout = WARP 未及时响应。密钥可能已应用；请先刷新账户再重试。
+warpPlus.busy = 请等待当前操作完成后重试。
+warpPlus.noWarp = 尚未注册 Zarp WARP 账户。应用密钥以接受条款并注册，不会启动隧道。
+warpPlus.apply = 应用密钥
+warpPlus.refresh = 刷新账户
+warpPlus.unknown = 未知或未注册
+warpPlus.free = WARP（免费）
+warpPlus.plus = WARP+
+warpPlus.unlimited = WARP+ Unlimited
+warpPlus.zerotrust = Cloudflare Zero Trust
+warpPlus.updateDaemon = WARP+ 暂时不可用。请稍后重试。
+sources.cached = 更新失败，使用上次保存的服务器列表。
+sources.unavailable = 所选来源或服务器没有可用的兼容组合。
+sources.refreshFailed = 无法更新所选订阅。
+sources.subtitle = 服务器隧道 + zapret
+sources.hintFirstRun = 点击查找可用的服务器和策略组合，然后通过 zapret 连接服务器隧道
+settings.title = Zarp 设置
+settings.connection = 服务器和端点
+settings.close = 关闭
+strategy.countrySelection = 国家：{0}
+strategy.countryRU = 俄罗斯
+strategy.countryIR = 伊朗
+strategy.countryCN = 中国
+
+# Server connection and application routing
+connection.useServer = 使用自己的服务器代替 WARP
+connection.serverHelp = 每行粘贴一个 VLESS、Trojan 或 Hysteria2 链接，或输入一个 HTTPS 订阅地址。Zarp 会寻找兼容的服务器与 zapret2 策略组合。
+connection.savedSource = 已保存的列表
+connection.newServer = 新服务器或订阅
+connection.serverInput = 服务器链接或订阅地址
+connection.savedServers = 已保存的服务器：{0}。留空以保留此列表。
+connection.ipv6 = 通过服务器传输 IPv6
+connection.dns = DNS 服务器
+connection.serverSaveHelp = 保存时会更新订阅，或用新链接替换导入的服务器列表。
+connection.saving = 正在保存并加载服务器...
+connection.nextConnection = 更改将在下次连接时生效。
+connection.noServer = 请输入服务器链接或订阅地址，或选择已保存的服务器列表。
+routing.invalid = 应用路由、IPv6 或 DNS 设置无效。请检查应用列表和 DNS 的数字 IP 地址。
+routing.fullTunnelRequired = 应用路由需要捕获全部流量。请在设置中启用。
+apps.title = 应用分流
+apps.enable = 启用应用分流
+apps.help = 选择应用包或可执行文件。选中的 .app 包含包内辅助进程，外部辅助进程需单独添加。保存会启用流量捕获以进行分类；在“仅所选应用”模式下，其余应用直连。
+apps.serverOnly = 这些规则适用于自己的服务器。WARP 模式不应用分流规则。
+apps.search = 按名称或路径搜索
+apps.application = 应用
+apps.path = 路径
+apps.selected = 已选应用：{0}
+apps.dnsHelp = 启用 DNS 替换后，系统共享的 DNS 查询通过服务器发送。启用应用筛选时，无法确定所属进程的流量会被阻止。
+apps.add = 添加应用...
+apps.modeAll = 所有应用
+apps.modeInclude = 仅所选应用
+apps.modeExclude = 除所选应用外的全部
+apps.choose = 请至少选择一个应用。
+opt.routeAllServer = 将连接应用于 Mac 流量
+opt.overrideDNSServer = 使用配置的服务器 DNS
+
+# Account setup and protected API recovery
+err.accountUncertain = Cloudflare 可能已创建账户，但响应丢失。已暂停自动注册以避免重复账户。请保留现有账户文件。
+err.accountUnavailable = 无法安全读取现有账户数据。请检查数据文件夹权限。Zarp 不会替换为新账户。
+err.accountRateLimited = Cloudflare 限制了注册请求。请稍后重试，待完成的注册数据已保留。
+err.accountCertificate = 无法验证 Cloudflare API 证书。注册已停止。
+err.accountNetwork = 使用可用 TLS 策略无法连接 Cloudflare 账户 API。待完成的注册数据已保留。
+err.accountRejected = Cloudflare 账户 API 拒绝了请求或返回无效响应。请检查账户并刷新状态。
+err.licenseUncertain = 许可请求可能已到达 Cloudflare。再次发送密钥前请刷新账户。
+detail.registering = 正在通过 API 保护注册 WARP...
+
+
+connection.preparing = 正在准备连接...
+connection.permissionRequired = 请在 macOS 设置中允许 Zarp 运行以继续。
+connection.prepareFailed = 无法准备连接。请重新尝试连接。
+connection.moveToApplications = 请将 Zarp 移到“应用程序”文件夹，然后重新打开。
+
+log.appStarted = Zarp {0} 已启动。
+log.connectionReplacing = 正在更新连接组件...
+log.connectionRegistering = 正在注册连接组件...
+log.connectionWaiting = 正在等待连接组件启动...
+log.connectionReady = 连接准备完成。
+log.connectionPreparationFailed = 连接准备失败：{0}
+
+detail.verifying = 正在检查连接稳定性...
+log.recoveryAlternatives = 连接不稳定。正在检查其他策略。
+log.recoveryCandidate = 正在检查其他策略：{0}
+log.networkChanged = 接入网络已更改。需要重新检查之前网络的结果。
+detail.networkChanged = 验证期间网络发生更改。请重新连接。
+result.unstable = 验证后不久连接中断
+err.peerKeyMismatch = 服务器 {0} 的密钥与受信任的 WARP 密钥不匹配。
+strategy.required = 需要外层 zapret 策略。已禁用直接 WARP 连接。

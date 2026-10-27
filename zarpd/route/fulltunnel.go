@@ -7,6 +7,10 @@ import (
 	"sync"
 )
 
+// ErrCleanupIncomplete marks a failed rollback. Callers must retain uncertainty
+// and refuse another tunnel rather than treating an ordinary setup error as idle.
+var ErrCleanupIncomplete = errors.New("network configuration cleanup incomplete")
+
 // Full tunnel: make a utun carry all of the machine's traffic.
 //
 // The shape is the one wg-quick uses on macOS, and it is chosen for what happens when things go
@@ -39,9 +43,12 @@ type FullTunnelConfig struct {
 	Utun string
 	// IPv6Addr is the tunnel's IPv6 address; when empty, only IPv4 is routed.
 	IPv6Addr string
-	// OverrideDNS also points the active network service's DNS at Cloudflare while the tunnel is
-	// up (see DNSOverride).
+	// OverrideDNS uses the supplied server resolvers, or Cloudflare for WARP.
 	OverrideDNS bool
+	// Advanced server routing refuses a partial setup that could bypass app rules.
+	RequireIPv6 bool
+	RequireDNS  bool
+	DNSServers  []string
 	// Physical is the interface the machine was using before the tunnel: the DNS override targets
 	// its network service, and the exclusion route goes through its gateway.
 	Physical *Physical
@@ -71,8 +78,8 @@ func (ft *FullTunnel) push(what string, fn func() error) {
 
 // EnableFullTunnel applies cfg. IPv4 routing is mandatory: if either IPv4 route can't be added
 // everything done so far is rolled back and the error returned, leaving the machine exactly as it
-// was. IPv6 and the DNS override are best-effort — each that fails is skipped, rolled back on its
-// own, and reported in warnings, because a working IPv4 tunnel with a note beats no tunnel at all.
+// was. IPv6 and DNS are best-effort unless RequireIPv6 or RequireDNS is set.
+// Required server policies roll back the whole setup after either failure.
 //
 // dns may be nil when cfg.OverrideDNS is false.
 func (r *Router) EnableFullTunnel(cfg FullTunnelConfig, dns *DNSOverride) (ft *FullTunnel, warnings []string, err error) {
@@ -82,7 +89,17 @@ func (r *Router) EnableFullTunnel(cfg FullTunnelConfig, dns *DNSOverride) (ft *F
 	if !cfg.Exclude.IsValid() || cfg.Physical == nil {
 		return nil, nil, errors.New("full tunnel: the endpoint to keep off the tunnel and the physical interface are required")
 	}
+	if cfg.RequireIPv6 && cfg.IPv6Addr == "" || cfg.RequireDNS && !cfg.OverrideDNS {
+		return nil, nil, errors.New("incomplete required tunnel configuration")
+	}
 	ft = &FullTunnel{}
+	requiredFailure := func(cause error) (*FullTunnel, []string, error) {
+		failures := ft.Disable()
+		if len(failures) > 0 {
+			return nil, nil, errors.Join(ErrCleanupIncomplete, cause, errors.Join(failures...))
+		}
+		return nil, nil, cause
+	}
 
 	// First: the tunnel's own connection must be safe before anything can swallow it.
 	undoExclusion, err := r.AddExclusion(cfg.Exclude, cfg.Physical, cfg.Journal)
@@ -93,7 +110,9 @@ func (r *Router) EnableFullTunnel(cfg FullTunnelConfig, dns *DNSOverride) (ft *F
 
 	for _, cidr := range v4Halves {
 		if err := r.AddNetRoute(cidr, cfg.Utun); err != nil {
-			ft.Disable() // nothing has been committed yet: put everything back
+			if rollback := ft.Disable(); len(rollback) != 0 {
+				return nil, nil, errors.Join(ErrCleanupIncomplete, err, errors.Join(rollback...))
+			}
 			if errors.Is(err, ErrRouteExists) {
 				return nil, nil, fmt.Errorf("another VPN or proxy already routes %s (%w) — turn it off first", cidr, err)
 			}
@@ -127,10 +146,17 @@ func (r *Router) EnableFullTunnel(cfg FullTunnelConfig, dns *DNSOverride) (ft *F
 			if v6err != nil {
 				// Half a pair would route half of the IPv6 space into the tunnel: take back what
 				// was added so IPv6 is either fully tunnelled or left alone.
+				var rollback []error
 				for i := 0; i < added; i++ {
 					last := ft.undo[len(ft.undo)-1]
 					ft.undo = ft.undo[:len(ft.undo)-1]
-					_ = last.fn()
+					if err := last.fn(); err != nil {
+						rollback = append(rollback, err)
+					}
+				}
+				if len(rollback) != 0 {
+					rollback = append(rollback, ft.Disable()...)
+					return nil, nil, errors.Join(ErrCleanupIncomplete, v6err, errors.Join(rollback...))
 				}
 				warnings = append(warnings, "IPv6 is not routed through the tunnel: "+v6err.Error())
 			} else {
@@ -139,10 +165,24 @@ func (r *Router) EnableFullTunnel(cfg FullTunnelConfig, dns *DNSOverride) (ft *F
 		}
 	}
 
+	if cfg.RequireIPv6 && !v6Active {
+		return requiredFailure(errors.New("IPv6 interception for application routing is unavailable"))
+	}
 	if cfg.OverrideDNS {
 		if dns == nil {
+			if cfg.RequireDNS {
+				return requiredFailure(errors.New("DNS override is unavailable"))
+			}
 			warnings = append(warnings, "DNS was not overridden: no DNS manager available")
-		} else if err := dns.Apply(cfg.Physical.Interface, v6Active); err != nil {
+		} else if err := func() error {
+			if len(cfg.DNSServers) != 0 {
+				return dns.ApplyServers(cfg.Physical.Interface, cfg.DNSServers)
+			}
+			return dns.Apply(cfg.Physical.Interface, v6Active)
+		}(); err != nil {
+			if errors.Is(err, ErrCleanupIncomplete) || cfg.RequireDNS {
+				return requiredFailure(err)
+			}
 			warnings = append(warnings, "DNS was not overridden: "+err.Error())
 		} else {
 			ft.push("dns", dns.Restore)

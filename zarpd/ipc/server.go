@@ -246,7 +246,7 @@ func dispatch(ctx context.Context, handler Handler, req Request, logf func(strin
 	if err != nil {
 		var ce *ConnError
 		if errors.As(err, &ce) {
-			return Response{ID: req.ID, Error: &ErrorInfo{Message: ce.Message, TimedOut: ce.TimedOut, Code: ce.Code}}
+			return Response{ID: req.ID, Error: &ErrorInfo{Message: ce.Message, TimedOut: ce.TimedOut, Code: ce.Code, Connection: ce.Connection}}
 		}
 		if errors.Is(err, context.Canceled) {
 			return Response{ID: req.ID, Error: &ErrorInfo{Message: err.Error(), Code: CodeCancelled}}

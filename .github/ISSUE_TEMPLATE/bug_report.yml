@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time. Please check [docs/TROUBLESHOOTING.md](https://github.com/feg55/Zarp-MacOS/blob/main/docs/TROUBLESHOOTING.md) first: it covers the usual first-launch and "no strategy works" problems.
+        Thanks for taking the time. Please check [docs/TROUBLESHOOTING.md](https://github.com/ZarpVPN/Zarp-MacOS/blob/main/docs/TROUBLESHOOTING.md) first: it covers the usual first-launch and "no strategy works" problems.
         **Do not paste your WARP account file** (`/Library/Application Support/Zarp/zarp-warp-config.json`): it contains a private key.
-        For a security problem, do not use this form: see the [security policy](https://github.com/feg55/Zarp-MacOS/security/policy).
+        For a security problem, do not use this form: see the [security policy](https://github.com/ZarpVPN/Zarp-MacOS/security/policy).
   - type: textarea
     id: what-happened
     attributes:
@@ -21,7 +21,7 @@ body:
     attributes:
       label: Zarp version
       description: "Shown under *Zarp > About Zarp*, or run `defaults read /Applications/Zarp.app/Contents/Info CFBundleShortVersionString`."
-      placeholder: "0.2.0"
+      placeholder: "1.0.0"
     validations:
       required: true
   - type: input

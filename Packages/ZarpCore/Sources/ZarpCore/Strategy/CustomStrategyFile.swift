@@ -18,14 +18,21 @@ public enum CustomStrategyFile {
         for rawLine in normalized.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty, !line.hasPrefix("#") else { continue }
-            let parts = line.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+            let parts = line.split(separator: "|", omittingEmptySubsequences: false)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-            guard parts.count == 3, !parts[0].isEmpty, let transport = Transport(parsing: parts[1]) else {
+            guard (3...4).contains(parts.count), !parts[0].isEmpty, let transport = Transport(parsing: parts[1]) else {
                 onSkipped(line)
                 continue
             }
-            let id = "custom-" + parts[0].lowercased().replacingOccurrences(of: " ", with: "-")
-            out.append(Strategy(id: id, name: "★ " + parts[0], transport: transport, args: parts[2], isCustom: true))
+            guard !StrategyArgsParser.parse(transport: transport, args: parts[2]).isDirect else {
+                onSkipped(line)
+                continue
+            }
+            let legacy = "custom-" + parts[0].lowercased().replacingOccurrences(of: " ", with: "-")
+            let id = "custom-v2-" + Strategy.fingerprint([parts[0], transport.rawValue, parts[2]])
+            let countries = parts.count == 4 ? StrategyFilter.countries(parts[3]) : []
+            out.append(Strategy(id: id, name: "★ " + parts[0], transport: transport, args: parts[2], isCustom: true,
+                                countries: countries, legacyId: legacy))
         }
         var seen = Set<String>()
         return out.reversed().filter { seen.insert($0.id).inserted }.reversed()
@@ -36,7 +43,7 @@ public enum CustomStrategyFile {
     /// stay in English: the syntax itself is the same technical winws2 syntax on every platform.
     public static let template = """
     # Custom Zarp strategies. One line = one strategy:
-    #   Name | transport | winws2 profile arguments
+    #   Name | transport | winws2 profile arguments | countries (optional: ru,ir,cn)
     # transport: h3 (MASQUE/QUIC), h2 (MASQUE/TLS), wg (WireGuard)
     # Blobs: quic_google, quic_vk, tls_google, tls_vk, stun_fake, zero64
     #

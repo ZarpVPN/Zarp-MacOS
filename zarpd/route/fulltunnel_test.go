@@ -2,6 +2,7 @@ package route
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"reflect"
@@ -46,7 +47,9 @@ func (w *tunnelWorld) run(name string, args []string) (string, error) {
 		case "-inet", "-inet6":
 			fam = args[i][1:]
 		case "-host":
-			fam = "inet"
+			if fam == "" {
+				fam = "inet"
+			}
 		case "-interface":
 			iface = args[i+1]
 			i++
@@ -71,7 +74,7 @@ func (w *tunnelWorld) run(name string, args []string) (string, error) {
 		w.routes[key] = iface
 	case "get":
 		if ifc, ok := w.routes[key]; ok {
-			return routeGetVia(ifc), nil
+			return fmt.Sprintf("destination: %s\ninterface: %s\ngateway: %s\nflags: <UP,HOST,STATIC>\n", dest, ifc, w.gateways[key]), nil
 		}
 		return routeGetVia("en0"), nil // best match is the default route
 	case "delete":
@@ -278,5 +281,59 @@ func TestFullTunnelNeedsAnInterface(t *testing.T) {
 	r := New(&fakeRunner{})
 	if _, _, err := r.EnableFullTunnel(FullTunnelConfig{Exclude: testEndpoint, Physical: testPhys}, nil); err == nil {
 		t.Fatal("expected an error")
+	}
+}
+
+func TestRequiredServerRoutingRollsBackPartialSetup(t *testing.T) {
+	for _, scenario := range []string{"ipv6", "dns-manager", "dns-apply", "rollback-failure"} {
+		t.Run(scenario, func(t *testing.T) {
+			w := newWorld()
+			w.routes["inet 203.0.113.0/24"] = "en7"
+			cfg := FullTunnelConfig{Utun: "utun5", Exclude: testEndpoint, Physical: testPhys}
+			var dns *DNSOverride
+			if scenario == "ipv6" {
+				cfg.RequireIPv6 = true
+				cfg.IPv6Addr = "2606:4700:110::1"
+				w.routes["inet6 8000::/1"] = "utun28"
+			} else {
+				cfg.OverrideDNS, cfg.RequireDNS = true, true
+				cfg.DNSServers = []string{"9.9.9.9"}
+			}
+			if scenario == "dns-apply" {
+				w.fail = func(name string, args []string) (string, error) {
+					if name == networksetup {
+						return "", errors.New("fake DNS manager failure")
+					}
+					return "", nil
+				}
+				dns = NewDNSOverride(&fakeRunner{handler: w.run}, t.TempDir()+"/dns.json")
+			}
+			if scenario == "rollback-failure" {
+				w.fail = func(name string, args []string) (string, error) {
+					if name == routeBin && args[1] == "delete" && args[len(args)-1] == "0.0.0.0/1" {
+						return "", errors.New("fake route cleanup failure")
+					}
+					return "", nil
+				}
+			}
+			r, _ := w.router()
+			ft, _, err := r.EnableFullTunnel(cfg, dns)
+			if err == nil || ft != nil {
+				t.Fatalf("partial required configuration was accepted: %v", err)
+			}
+			want := map[string]string{"inet 203.0.113.0/24": "en7"}
+			if scenario == "ipv6" {
+				want["inet6 8000::/1"] = "utun28"
+			}
+			if scenario == "rollback-failure" {
+				want["inet 0.0.0.0/1"] = "utun5"
+			}
+			if errors.Is(err, ErrCleanupIncomplete) != (scenario == "rollback-failure") {
+				t.Fatalf("cleanup uncertainty was not retained: %v", err)
+			}
+			if !reflect.DeepEqual(w.routes, want) {
+				t.Fatalf("rollback left unexpected routes: %v", w.routes)
+			}
+		})
 	}
 }

@@ -12,7 +12,11 @@ import Foundation
 /// Unknown keys are ignored for the same reason.
 public struct AppSettings: Codable, Sendable, Equatable {
     public var selectedStrategyId: String?
+    public var sourceSelections: [String: String] = [:]
     public var results: [String: TestResult] = [:]
+    public var strategyCountries: String = "all"
+    public var warpEndpoints: [String] = []
+    public var serverRouting: ServerRoutingPolicy = ServerRoutingPolicy()
 
     /// Seconds to wait for WARP to connect on one strategy.
     public var testTimeoutSec: Int = 15
@@ -51,7 +55,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case selectedStrategyId, results, testTimeoutSec, stopAfterWorking, autoConnectOnStart
+        case selectedStrategyId, sourceSelections, results, strategyCountries, warpEndpoints, serverRouting, testTimeoutSec, stopAfterWorking, autoConnectOnStart
         case askBeforeClose, minimizeToMenuBar, disconnectOnExit, isolateTests, language
         case routeAllTraffic, overrideDNS, reconnectOnLoss, warpTermsAccepted
     }
@@ -65,6 +69,10 @@ public struct AppSettings: Codable, Sendable, Equatable {
             (try? c.decodeIfPresent(T.self, forKey: key)) ?? fallback
         }
         selectedStrategyId = (try? c.decodeIfPresent(String.self, forKey: .selectedStrategyId)) ?? nil
+        sourceSelections = field(.sourceSelections, [:])
+        strategyCountries = field(.strategyCountries, d.strategyCountries)
+        warpEndpoints = field(.warpEndpoints, d.warpEndpoints)
+        serverRouting = c.contains(.serverRouting) ? ((try? c.decode(ServerRoutingPolicy.self, forKey: .serverRouting)) ?? .invalid) : d.serverRouting
         // One damaged result must not cost the user every other result they scanned for.
         results = ((try? c.decodeIfPresent([String: LossyDecodable<TestResult>].self, forKey: .results)) ?? nil)?
             .compactMapValues(\.value) ?? d.results
@@ -87,6 +95,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// file can't make a scan wait forever or stop after zero strategies.
     public func normalized() -> AppSettings {
         var s = self
+        s.strategyCountries = StrategyFilter.normalize(s.strategyCountries)
         s.testTimeoutSec = min(max(s.testTimeoutSec, Self.timeoutRange.lowerBound), Self.timeoutRange.upperBound)
         s.stopAfterWorking = min(max(s.stopAfterWorking, Self.stopAfterRange.lowerBound), Self.stopAfterRange.upperBound)
         return s

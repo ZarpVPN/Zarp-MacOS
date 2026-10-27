@@ -12,7 +12,10 @@
 // particular — rather than finishing work nobody will collect.
 package ipc
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/feg55/zarp-macos/zarpd/connection"
+)
 
 // ProtocolVersion is bumped whenever a request or response changes shape incompatibly. The app
 // compares it (PingResult.Protocol) against the version it was built for, so a stale daemon left
@@ -22,7 +25,9 @@ import "encoding/json"
 // 2 = lazy account registration (register), daemon log pull (logs), full-tunnel routing
 //
 //	(OpenParams.RouteAll/OverrideDNS), error codes, endpoint rotation tokens.
-const ProtocolVersion = 2
+//
+// 3 = validated custom WARP endpoints and IPv6 control connections.
+const ProtocolVersion = 3
 
 // Request is one line the app sends. Params is left as raw JSON and re-decoded per Method by the
 // handler, rather than a big union struct, so adding a method doesn't touch every existing one.
@@ -41,31 +46,46 @@ type Response struct {
 
 // Error codes. Code is empty for an ordinary failure whose Message is all the app needs.
 const (
-	CodeBadRequest  = "bad_request" // the request itself is malformed or out of bounds
-	CodeForbidden   = "forbidden"   // the connecting process isn't allowed to use the daemon
-	CodeBusy        = "busy"        // too many connections / requests in flight
-	CodeNoAccount   = "no_account"  // no WARP account yet; the app must register first (consent)
-	CodeForeignVPN  = "foreign_vpn" // another VPN owns the default route; full tunnel refused
-	CodeUnsupported = "unsupported" // valid request for something this daemon doesn't implement
-	CodeCancelled   = "cancelled"   // aborted because the caller went away or a newer open superseded it
-	CodeInternal    = "internal"    // a bug in the daemon (recovered panic)
+	CodeBadRequest       = "bad_request" // the request itself is malformed or out of bounds
+	CodeForbidden        = "forbidden"   // the connecting process isn't allowed to use the daemon
+	CodeBusy             = "busy"        // too many connections / requests in flight
+	CodeNoAccount        = "no_account"  // no WARP account yet; the app must register first (consent)
+	CodeForeignVPN       = "foreign_vpn" // another VPN owns the default route; full tunnel refused
+	CodeUnsupported      = "unsupported" // valid request for something this daemon doesn't implement
+	CodeCancelled        = "cancelled"   // aborted because the caller went away or a newer open superseded it
+	CodeInternal         = "internal"    // a bug in the daemon (recovered panic)
+	CodePeerKeyMismatch  = "peer_key_mismatch"
+	CodeConnectionLost   = "connection_lost"
+	CodeConnectionClosed = "connection_closed"
+	CodeStrategyRequired = "strategy_required"
 )
+
+// ConnectionFailure is additive, non-secret context for a failed tunnel phase.
+type ConnectionFailure struct {
+	Endpoint     string `json:"endpoint,omitempty"`
+	Transport    string `json:"transport,omitempty"`
+	Phase        string `json:"phase,omitempty"`
+	StrategyID   string `json:"strategyId,omitempty"`
+	ConnectionID string `json:"connectionId,omitempty"`
+}
 
 type ErrorInfo struct {
 	Message string `json:"message"`
 	// TimedOut mirrors EngineProtocols.swift's WarpConnectionError.timedOut, which drives the
 	// same err.timeout-vs-generic-failure distinction the scan loop makes.
-	TimedOut bool   `json:"timedOut"`
-	Code     string `json:"code,omitempty"`
+	TimedOut   bool               `json:"timedOut"`
+	Code       string             `json:"code,omitempty"`
+	Connection *ConnectionFailure `json:"connection,omitempty"`
 }
 
 // ConnError is what a Handler returns for a failure that should reach the app as
 // WarpConnectionError(message, timedOut:, code:) — see EngineProtocols.swift. A plain error
 // becomes ErrorInfo{Message: err.Error()}.
 type ConnError struct {
-	Message  string
-	TimedOut bool
-	Code     string
+	Message    string
+	TimedOut   bool
+	Code       string
+	Connection *ConnectionFailure
 }
 
 func (e *ConnError) Error() string { return e.Message }
@@ -81,7 +101,14 @@ type PingResult struct {
 	Protocol int    `json:"protocol"`
 	// AccountRegistered is whether a WARP account exists yet. Registration happens only after the
 	// user has accepted Cloudflare's terms in the app (the `register` method), never on its own.
-	AccountRegistered bool `json:"accountRegistered"`
+	AccountRegistered    bool   `json:"accountRegistered"`
+	WarpPlusSupported    bool   `json:"warpPlusSupported,omitempty"`
+	AccountSetupVersion  int    `json:"accountSetupVersion,omitempty"`
+	WarpAccountState     string `json:"warpAccountState,omitempty"`
+	ServerRoutingVersion int    `json:"serverRoutingVersion,omitempty"`
+	WarpTLSNameVersion   int    `json:"warpTLSNameVersion,omitempty"`
+	// Additive metadata. Loopback proofs are not production capabilities.
+	RuntimeCapabilities *connection.Capabilities `json:"runtimeCapabilities,omitempty"`
 }
 
 // --- restart ---
@@ -105,19 +132,28 @@ type RegisterResult struct {
 // effects, safe to call as often as needed. Only ever reports the one *persistent* connection
 // (test/scan connections are deliberately short-lived and never worth a GUI adopting), matching
 // ZarpEngine's own "one operation at a time" invariant. `Connected: false` with everything else
-// empty means genuinely idle, not unreachable — an unreachable daemon fails the IPC call itself
-// (same as every other method), it doesn't return a hollow StatusResult.
+// empty does not establish idle: an opening/test/closing connection has no GUI
+// adoption handle. NetworkBusy must also be explicitly false. An unreachable
+// daemon fails the IPC call itself rather than returning a hollow StatusResult.
 type StatusResult struct {
-	DaemonRunning     bool   `json:"daemonRunning"`
-	AccountRegistered bool   `json:"accountRegistered"`
-	Connected         bool   `json:"connected"`
-	ConnectionID      string `json:"connectionId,omitempty"`
-	StrategyID        string `json:"strategyId,omitempty"`
-	Endpoint          string `json:"endpoint,omitempty"`
-	Transport         string `json:"transport,omitempty"`
-	ConnectMs         int    `json:"connectMs,omitempty"`
-	ConnectStartedAt  string `json:"connectStartedAt,omitempty"` // RFC3339
-	UtunName          string `json:"utunName,omitempty"`
+	RuntimeCapabilities *connection.Capabilities `json:"runtimeCapabilities,omitempty"`
+	ActiveMode          string                   `json:"activeMode,omitempty"`
+	ServerID            string                   `json:"serverId,omitempty"`
+	SourceID            string                   `json:"sourceId,omitempty"`
+	DaemonRunning       bool                     `json:"daemonRunning"`
+	AccountRegistered   bool                     `json:"accountRegistered"`
+	Connected           bool                     `json:"connected"`
+	// Always emitted. Includes queued/dialing opens, scan connections, teardown
+	// and terminal shutdown, even when Connected is false. Old clients can ignore
+	// it; safety guards must treat a missing field as unknown, never idle.
+	NetworkBusy      bool   `json:"networkBusy"`
+	ConnectionID     string `json:"connectionId,omitempty"`
+	StrategyID       string `json:"strategyId,omitempty"`
+	Endpoint         string `json:"endpoint,omitempty"`
+	Transport        string `json:"transport,omitempty"`
+	ConnectMs        int    `json:"connectMs,omitempty"`
+	ConnectStartedAt string `json:"connectStartedAt,omitempty"` // RFC3339
+	UtunName         string `json:"utunName,omitempty"`
 	// RouteAll is true when all traffic goes through the tunnel, false when only the test route does.
 	// Deliberately *not* omitempty: "false" is an answer the app must be able to read, and an absent
 	// field would be indistinguishable from a daemon that predates the field.
@@ -147,10 +183,20 @@ type LossInfo struct {
 // Every field is validated (Validate) before anything is dialed: this is a privileged process
 // taking requests from user-level code, so the app's own parser being careful isn't relied on.
 type OpenParams struct {
-	Transport  string     `json:"transport"` // "masqueH3" | "masqueH2" ("" = masqueH3); "wireGuard" is rejected as unsupported
-	StrategyID string     `json:"strategyId,omitempty"`
-	FakeSteps  []FakeStep `json:"fakeSteps,omitempty"` // masqueH3 only
-	TCPDesync  *TCPDesync `json:"tcpDesync,omitempty"` // masqueH2 only
+	// Filled only by the separately validated openServer handler. Legacy JSON
+	// cannot turn a WARP request into an unrestricted server connection.
+	Mode           string                    `json:"-"`
+	Profile        *connection.Profile       `json:"-"`
+	SourceID       string                    `json:"-"`
+	AllowPlain     bool                      `json:"-"`
+	RoutingPolicy  *connection.RoutingPolicy `json:"-"`
+	EndpointPolicy string                    `json:"endpointPolicy,omitempty"` // empty = WARP ranges; customWarp = public numeric IP with WARP pin
+
+	Transport   string     `json:"transport"` // "masqueH3" | "masqueH2" ("" = masqueH3); "wireGuard" is rejected as unsupported
+	StrategyID  string     `json:"strategyId,omitempty"`
+	FakeSteps   []FakeStep `json:"fakeSteps,omitempty"`   // masqueH3 only
+	TCPDesync   *TCPDesync `json:"tcpDesync,omitempty"`   // masqueH2 only
+	WarpTLSName string     `json:"warpTLSName,omitempty"` // optional strategy SNI, enrolled peer key still required
 	// Endpoint pins the WARP endpoint: "" = the account's own; "ip" or "ip:port" within
 	// Cloudflare's published WARP ranges; or "isolated-N", ZarpEngine's per-test uniqueness token,
 	// which the daemon maps onto a rotating pool of endpoints (daemon/endpoints.go) so every test

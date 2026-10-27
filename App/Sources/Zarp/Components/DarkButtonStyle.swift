@@ -4,25 +4,29 @@ import SwiftUI
 /// background, accent-color background for the primary action, disabled state fades text and
 /// border instead of hiding them.
 struct DarkButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var environmentEnabled
+    @State private var hovering = false
     var primary: Bool = false
     var isEnabled: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
+        let enabled = isEnabled && environmentEnabled
         let bg: Color = {
-            if !isEnabled { return Theme.back }
+            if !enabled { return Theme.back }
             if primary { return configuration.isPressed ? Theme.accent.opacity(0.85) : Theme.accent }
-            return configuration.isPressed ? Theme.border : Theme.panel
+            return configuration.isPressed ? Theme.border : (hovering ? Theme.panelHover : Theme.panel)
         }()
-        let fg: Color = !isEnabled ? Theme.textDisabled : (primary ? Theme.onAccent : Theme.text)
-        let border: Color = !isEnabled ? Theme.border : (primary ? bg : Theme.border)
+        let fg: Color = !enabled ? Theme.textDisabled : (primary ? Theme.onAccent : Theme.text)
+        let border: Color = !enabled ? Theme.border : (primary ? bg : (hovering ? Theme.borderHover : Theme.border))
 
         configuration.label
             .font(Theme.font(12))
             .foregroundColor(fg)
             .padding(.horizontal, 14)
-            .frame(minWidth: 96, minHeight: 30)
+            .frame(minWidth: 96, minHeight: 34)
             .background(RoundedRectangle(cornerRadius: 8).fill(bg))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(border, lineWidth: 1))
+            .onHover { hovering = $0 }
     }
 }
 

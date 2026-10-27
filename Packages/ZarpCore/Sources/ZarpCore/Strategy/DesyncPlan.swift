@@ -49,6 +49,6 @@ public struct DesyncPlan: Hashable, Sendable {
         self.parseIssue = parseIssue
     }
 
-    /// No desync at all — WARP would connect as-is (the "direct" control strategies).
+    /// No executable outer step. Product readiness rejects this plan.
     public var isDirect: Bool { fakeSteps.isEmpty && tcpDesync == nil && parseIssue == nil }
 }

@@ -16,6 +16,7 @@ package warp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"sort"
@@ -36,6 +37,9 @@ const (
 type DesyncSpec struct {
 	Mode DesyncMode
 	Pos  []string
+	// OnApplied reports completed segment writes for one ClientHello. No packet
+	// contents, hostnames or TLS secrets are passed to the observer.
+	OnApplied func(segments int)
 }
 
 // ParseDesync parses "split:host,midsld" / "disorder:-2,endhost" style specs.
@@ -116,28 +120,61 @@ func splitPositions(data []byte, pos []string, host string) []int {
 	return out
 }
 
-// desyncConn applies the desync to the first Write only (expected to be the TLS ClientHello);
-// every later write passes straight through.
+// desyncConn splits ClientHello records, including the second ClientHello after
+// HelloRetryRequest. Other TLS records and application writes pass through.
 type desyncConn struct {
 	*net.TCPConn
-	spec *DesyncSpec
-	host string
-	once sync.Once
+	spec    *DesyncSpec
+	host    string
+	writeMu sync.Mutex
 }
 
-// NewDesyncConn wraps c so its first Write (the TLS ClientHello, detected by the handshake record
-// byte 0x16) is split per spec. host is the SNI to split around ("host"/"endhost"/"sld"/"midsld"
-// positions); pass "" if spec only uses numeric offsets.
+// NewDesyncConn wraps crypto/tls record writes. host is the SNI to split around;
+// pass an empty host if spec only uses numeric offsets. The record writer must
+// supply complete TLS records, as crypto/tls does.
 func NewDesyncConn(c *net.TCPConn, spec *DesyncSpec, host string) net.Conn {
 	return &desyncConn{TCPConn: c, spec: spec, host: host}
 }
 
 func (c *desyncConn) Write(b []byte) (int, error) {
-	first := false
-	c.once.Do(func() { first = true })
-	if !first || len(b) < 6 || b[0] != 0x16 { // not a TLS handshake record
-		return c.TCPConn.Write(b)
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	written := 0
+	for offset := 0; offset+5 <= len(b); {
+		if b[offset+1] != 3 || b[offset+2] > 4 {
+			break
+		}
+		length := int(binary.BigEndian.Uint16(b[offset+3 : offset+5]))
+		end := offset + 5 + length
+		if length == 0 || end > len(b) {
+			break
+		}
+		if b[offset] == 0x16 && length >= 4 && b[offset+5] == 1 {
+			// A TLS 1.3 compatibility CCS can precede the retry ClientHello
+			// in the same Write. Preserve it, then split the actual record.
+			if written < offset {
+				n, err := c.TCPConn.Write(b[written:offset])
+				written += n
+				if err != nil {
+					return written, err
+				}
+			}
+			n, err := c.writeClientHello(b[offset:end])
+			written += n
+			if err != nil {
+				return written, err
+			}
+		}
+		offset = end
 	}
+	if written < len(b) {
+		n, err := c.TCPConn.Write(b[written:])
+		return written + n, err
+	}
+	return written, nil
+}
+
+func (c *desyncConn) writeClientHello(b []byte) (int, error) {
 	parts := splitPositions(b, c.spec.Pos, c.host)
 	if len(parts) == 0 {
 		return c.TCPConn.Write(b)
@@ -162,6 +199,9 @@ func (c *desyncConn) Write(b []byte) (int, error) {
 		if i < len(ends)-1 {
 			time.Sleep(time.Millisecond) // give the kernel a chance to emit each piece as its own segment
 		}
+	}
+	if c.spec.OnApplied != nil {
+		c.spec.OnApplied(len(ends))
 	}
 	return written, nil
 }

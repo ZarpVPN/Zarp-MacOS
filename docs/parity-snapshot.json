@@ -1,0 +1,637 @@
+{
+  "audit_date": "2026-10-13",
+  "timezone": "Europe/Moscow",
+  "method": "Pinned source and commit-history comparison; current macOS unit tests; official sing-box/Xray documentation consulted via Context7 and version-pinned source.",
+  "repositories": {
+    "windows": {
+      "url": "https://github.com/ZarpVPN/Zarp.git",
+      "local_path": "_reference/Zarp",
+      "head": "07406eb5af0a2ad1812fde3692965313cc2798fc",
+      "tree": "2b2cc93851d53a3427855d6efdae5f8f7af534f6",
+      "commit_date": "2026-10-11T19:40:33+03:00",
+      "tags_at_head": [
+        "v1.5.0"
+      ],
+      "full_history": true,
+      "reachable_commits": 23,
+      "tracked_files": 104,
+      "previous_local_head": "faf5515faf90d8da65448a3d12327d2329525af5",
+      "changes_since_previous_local_head": {
+        "commits": 14,
+        "files": 84,
+        "insertions": 38266,
+        "deletions": 518,
+        "bundled_route_insertions": 20691
+      },
+      "working_tree_clean": true,
+      "history": [
+        {
+          "sha": "07406eb5af0a2ad1812fde3692965313cc2798fc",
+          "date": "2026-10-11T19:40:33+03:00",
+          "subject": "remove the review report, rename the review-named test file, fix third-party notices (GPL modules in xray.exe, source directions in release notes)"
+        },
+        {
+          "sha": "c0e06ce3baa373a900fe73b5c979dd08663f9bd1",
+          "date": "2026-10-11T18:46:40+03:00",
+          "subject": "own server over zapret2 (strategy x server pairs), XHTTP via embedded Xray, subscriptions, ECH"
+        },
+        {
+          "sha": "da6133abaee6fed7f1c016139737175c78d130ae",
+          "date": "2026-10-11T01:18:33+03:00",
+          "subject": "fix: check the own server over SOCKS5, not an HTTP proxy"
+        },
+        {
+          "sha": "5bab0e3a904dab1e4ffb4e1f6b5a69467cc2ae5c",
+          "date": "2026-10-11T00:07:45+03:00",
+          "subject": "own server via sing-box, routing, GeoIP/GeoSite, per-app proxy, strategy countries, custom WARP endpoints"
+        },
+        {
+          "sha": "17c9a7452cf9fe682ffdf63a76f5cb3b268d51c6",
+          "date": "2026-10-09T03:36:41+03:00",
+          "subject": "fix: retry the winws2 dry run when the Windows loader kills it (0xC0000142)"
+        },
+        {
+          "sha": "cc3edb8cf46ecec72e12dd6a46f12d2c574c1519",
+          "date": "2026-10-09T01:54:26+03:00",
+          "subject": "add macOS Version to README"
+        },
+        {
+          "sha": "a82a942a6e271eae28b423cb2bc146c6ba80560c",
+          "date": "2026-10-06T20:48:16+03:00",
+          "subject": "BetterTests"
+        },
+        {
+          "sha": "f4f869eed37ef24da522e1a5ae18ae28461e8b77",
+          "date": "2026-10-06T20:25:05+03:00",
+          "subject": "Tets fix 2"
+        },
+        {
+          "sha": "1b8742ac0555f67faaea3e10bc401cb060d535ac",
+          "date": "2026-10-06T18:20:14+03:00",
+          "subject": "Tets fix"
+        },
+        {
+          "sha": "fefdc5589b064eaaf25170c5f8cd7d88b7094412",
+          "date": "2026-10-06T18:00:34+03:00",
+          "subject": "feat: new strategy set, no scans through another VPN, review hardening"
+        },
+        {
+          "sha": "02f41928baada1d917e8b9333d7037bdd6342788",
+          "date": "2026-10-05T18:36:30+03:00",
+          "subject": "fix: verify the WARP installer signature with WinVerifyTrust instead of PowerShell"
+        },
+        {
+          "sha": "72a4363959f78c095de7445a1c7410269fd632f3",
+          "date": "2026-10-05T18:29:55+03:00",
+          "subject": "fix: make WARP installer signature tests independent of the OS"
+        },
+        {
+          "sha": "336e1b6aae03c2dc43d25d86dc9c95b61a3a24c2",
+          "date": "2026-10-05T18:25:37+03:00",
+          "subject": "Merge branch 'main' of https://github.com/feg55/Zarp"
+        },
+        {
+          "sha": "1710a0cb7f622c92cf50142babb14ffcdd518890",
+          "date": "2026-10-05T18:23:00+03:00",
+          "subject": "feat: install Cloudflare WARP on demand, robust WARP detection"
+        },
+        {
+          "sha": "faf5515faf90d8da65448a3d12327d2329525af5",
+          "date": "2026-09-25T07:12:55+03:00",
+          "subject": "Update README with Zarp screenshot"
+        },
+        {
+          "sha": "da573d9b0f927bd49b539127ac2a67a58935b608",
+          "date": "2026-09-25T07:09:54+03:00",
+          "subject": "docs: download section with Windows and Android builds"
+        },
+        {
+          "sha": "62378f4863d5d3c1003a2cb5ffe92c7126a1d24c",
+          "date": "2026-09-25T02:19:33+03:00",
+          "subject": "docs: code signing policy, privacy and uninstall sections"
+        },
+        {
+          "sha": "c3d8b4646363faf2257b5c2dab5e2c33ef07a8a4",
+          "date": "2026-09-25T01:49:04+03:00",
+          "subject": "feat: 8 interface languages, quick and full strategy scan"
+        },
+        {
+          "sha": "ca1f1b25d307868fa94d70eb5829c7ffdbfb7f90",
+          "date": "2026-09-25T00:34:15+03:00",
+          "subject": "fix: unify controls and make release signing optional"
+        },
+        {
+          "sha": "5f21073f416c69688828e6e5bb2b9010903472cc",
+          "date": "2026-09-25T00:23:17+03:00",
+          "subject": "fix: close behavior, VPN detection and release signing"
+        },
+        {
+          "sha": "a70d0827c270fc68f497ec41494a54ba83828dfe",
+          "date": "2026-09-24T23:52:50+03:00",
+          "subject": "HotFix"
+        },
+        {
+          "sha": "375d04a6d9b7e046f1b98ef2f5fbd9a917dfd3c7",
+          "date": "2026-09-24T23:21:23+03:00",
+          "subject": "designFix's"
+        },
+        {
+          "sha": "a09ef354047a218d342e6bd6906272028a7ae226",
+          "date": "2026-09-24T23:00:21+03:00",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "android": {
+      "url": "https://github.com/ZarpVPN/Zarp-Android.git",
+      "local_path": "_reference/Zarp-Android",
+      "head": "9399fd496bb1fb791f83f4cb80a2f450186be31d",
+      "tree": "0c6928740bd74784aa9ea259135d86ae7f644f3b",
+      "commit_date": "2026-10-12T09:47:42+03:00",
+      "tags_at_head": [
+        "v1.1.1"
+      ],
+      "full_history": true,
+      "reachable_commits": 10,
+      "tracked_files": 201,
+      "previous_local_head": "1b80c3087ce4f3aa03d35a0e342b2689c404fd4b",
+      "changes_since_previous_local_head": {
+        "commits": 3,
+        "files": 121,
+        "insertions": 33081,
+        "deletions": 191,
+        "bundled_route_insertions": 20710
+      },
+      "working_tree_clean": true,
+      "history": [
+        {
+          "sha": "9399fd496bb1fb791f83f4cb80a2f450186be31d",
+          "date": "2026-10-12T09:47:42+03:00",
+          "subject": "fixed ttl test"
+        },
+        {
+          "sha": "e15b9db62551953e960ebf2225d69fcb4f3d83f1",
+          "date": "2026-10-12T09:21:09+03:00",
+          "subject": "Add server strategies, XHTTP and subscriptions"
+        },
+        {
+          "sha": "f4ab600a89e6caa81463cfa667a02397b2c5550a",
+          "date": "2026-10-10T16:45:35+03:00",
+          "subject": "feat: add per-app proxy, custom servers, routing rules and country filters"
+        },
+        {
+          "sha": "1b80c3087ce4f3aa03d35a0e342b2689c404fd4b",
+          "date": "2026-09-25T07:03:39+03:00",
+          "subject": "Release: reuse an existing release instead of failing"
+        },
+        {
+          "sha": "52a328dec3d20ce40e5f792944252dc044065061",
+          "date": "2026-09-25T06:21:27+03:00",
+          "subject": "Softer dark palette, new screenshots"
+        },
+        {
+          "sha": "b74d21a3950ca9499b2dee74d4693f39947ece9b",
+          "date": "2026-09-25T06:11:20+03:00",
+          "subject": "Retake README screenshots"
+        },
+        {
+          "sha": "f88606d71b53496445cf888a88827c97dbf5682b",
+          "date": "2026-09-25T05:28:23+03:00",
+          "subject": "Zarp colors and animations, 8 languages with system detection, new README"
+        },
+        {
+          "sha": "70bfb38f9e8c5a984284f29e1831c6414d5150de",
+          "date": "2026-09-25T04:41:23+03:00",
+          "subject": "Make gradlew and build-core.sh executable"
+        },
+        {
+          "sha": "e5121a7966750a3cee17cadda93e8971da3fc4ad",
+          "date": "2026-09-25T04:38:23+03:00",
+          "subject": "Android port of Zarp: WARP MASQUE with Zarp strategies"
+        },
+        {
+          "sha": "50c84558746373568b9189d7248e28bec43f2f2b",
+          "date": "2026-09-25T02:49:56+03:00",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "macos_local": {
+      "url": "https://github.com/feg55/Zarp-MacOS.git",
+      "local_path": ".",
+      "head": "f942a4bf4b9550bbdf63d5ee9e45791c1ee08216",
+      "tree": "38305f39835a617166da2e80a0317b6e8cfac801",
+      "commit_date": "2026-10-08T22:53:13+03:00",
+      "tags_at_head": [
+        "v0.2.0"
+      ],
+      "full_history": true,
+      "reachable_commits": 27,
+      "tracked_files": 164,
+      "history": [
+        {
+          "sha": "f942a4bf4b9550bbdf63d5ee9e45791c1ee08216",
+          "date": "2026-10-08T22:53:13+03:00",
+          "subject": "Release 0.2.0: drag-to-Applications disk image, simpler README"
+        },
+        {
+          "sha": "c345e2e04052961d4cb1cf86423ed3fc278a68de",
+          "date": "2026-10-08T22:19:25+03:00",
+          "subject": "Fix Readme added more versions"
+        },
+        {
+          "sha": "e2196511cd53e1627a460b9cbed9c6efdc5ebd2a",
+          "date": "2026-10-08T22:12:55+03:00",
+          "subject": "BetterReadme"
+        },
+        {
+          "sha": "c85e8e6a0290e6296a33e2e930e31f1aa2f65cc2",
+          "date": "2026-10-08T19:11:43+03:00",
+          "subject": "Prepare the first public release"
+        },
+        {
+          "sha": "f1a5584ab0396a4b68c5449c034022da0d93a5ce",
+          "date": "2026-10-08T16:53:49+03:00",
+          "subject": "Its Work Now"
+        },
+        {
+          "sha": "a080230877549f646d8db5ba5fe2738ec485a36b",
+          "date": "2026-10-06T12:18:49+03:00",
+          "subject": "Phase 9: package an unnotarized, Development-signed DMG"
+        },
+        {
+          "sha": "20b5eec61939f304d5d9864d4a8da2f59459bbf9",
+          "date": "2026-10-06T11:25:13+03:00",
+          "subject": "Reconcile GUI with an already-live daemon tunnel after a GUI crash"
+        },
+        {
+          "sha": "bca21a48df033200681e9e804d11ffd961599d90",
+          "date": "2026-09-26T10:50:49+03:00",
+          "subject": "Phase 8: install zarpd as a real LaunchDaemon via SMAppService"
+        },
+        {
+          "sha": "e136a60e01b9c0d2ec1ac7aa9541dbcf66366f66",
+          "date": "2026-09-26T09:59:46+03:00",
+          "subject": "Document Phase 7.5: real Quick/Full Scan, persistence, and self-heal validation"
+        },
+        {
+          "sha": "a0aff66af2a1ac78f737bd6285852f7c1c238cdc",
+          "date": "2026-09-26T09:44:46+03:00",
+          "subject": "Fix two real bugs found by Phase 7.5 Quick/Full Scan testing"
+        },
+        {
+          "sha": "f241ef4cf2f9653fb68ffbcee5cb0f5e128e5617",
+          "date": "2026-09-26T04:57:26+03:00",
+          "subject": "Fix two bugs found by real Phase 7 end-to-end testing"
+        },
+        {
+          "sha": "6c948de0c50924b1ddb40ebdaebb7d4896ca34e7",
+          "date": "2026-09-26T04:24:56+03:00",
+          "subject": "Stop building the rejected NetworkExtension approach into the app"
+        },
+        {
+          "sha": "c0de335ab7e227f6255d55aea7e47030feec5875",
+          "date": "2026-09-26T04:23:02+03:00",
+          "subject": "Phase 7: zarpd daemon + IPC, wired into the real Swift app"
+        },
+        {
+          "sha": "2fbd3b54853f6172ae8b5a1e9c500336e0ab9f97",
+          "date": "2026-09-26T04:14:10+03:00",
+          "subject": "Phase 6 mostly done: HTTP/2 MASQUE + TLS split work, disorder doesn't"
+        },
+        {
+          "sha": "c0cfae7940d6cd750a2ed524f00a817b3b84dfc2",
+          "date": "2026-09-26T03:58:43+03:00",
+          "subject": "Phase 5 mechanism done: multi-step strategies + ip_ttl, verified"
+        },
+        {
+          "sha": "8d7df87f0a7d8bd90878b3b3da44ba748fa3c831",
+          "date": "2026-09-26T03:53:07+03:00",
+          "subject": "Phase 4 done: fake google x6 beats a real, active DPI block"
+        },
+        {
+          "sha": "c1567a07ca1f9b1d756ff7869eb8260526e3df6d",
+          "date": "2026-09-26T03:31:39+03:00",
+          "subject": "Phase 3 done: real internet traffic through utun -> MASQUE -> WARP"
+        },
+        {
+          "sha": "840ac40a494f52e581bd00431c4130f37652f12c",
+          "date": "2026-09-26T03:24:28+03:00",
+          "subject": "Phase 3 (partial): real WARP registration + MASQUE dial working"
+        },
+        {
+          "sha": "ca4bbb9a6e7aef010f0754b8aadc38f1a3413fcb",
+          "date": "2026-09-26T03:19:10+03:00",
+          "subject": "Phase 2 done: zarpd can own a real macOS utun"
+        },
+        {
+          "sha": "8281784f5051bcaeac681e6ca91e753144d39f94",
+          "date": "2026-09-26T03:05:51+03:00",
+          "subject": "Architecture pivot: Zarp owns the WARP connection (zarpd), not NE"
+        },
+        {
+          "sha": "8811824baef36f6666eebee33e6bf093e9c4f8e2",
+          "date": "2026-09-25T21:28:48+03:00",
+          "subject": "Add PoC OSSystemExtensionRequest activation trigger (DEBUG only)"
+        },
+        {
+          "sha": "096f7df727296dd9467d8f96dd4689204c10f64f",
+          "date": "2026-09-25T21:05:55+03:00",
+          "subject": "docs: record confirmed Personal Team capability gap"
+        },
+        {
+          "sha": "637b90cc0b6d4db7f768f566bbffa78f47c2299e",
+          "date": "2026-09-25T21:05:23+03:00",
+          "subject": "Add minimal NEFilterPacketProvider target; confirm Personal Team gap"
+        },
+        {
+          "sha": "206470e4cbc875a4fc29e12b27a57b00caf61dbd",
+          "date": "2026-09-25T11:56:59+03:00",
+          "subject": "Fix opt.autostart translation: says \"Windows\" in 7 languages"
+        },
+        {
+          "sha": "9c052eac97342438278e7a9da1e4074e33d42697",
+          "date": "2026-09-25T11:56:54+03:00",
+          "subject": "Fix app target: text wrapping, titlebar close wiring, test Info.plist"
+        },
+        {
+          "sha": "694d25d55b95c9b4ce9eedbb25b4c7a438646480",
+          "date": "2026-09-25T11:56:44+03:00",
+          "subject": "Fix ZarpCore actor-isolation, Codable, and cancellation-race bugs"
+        },
+        {
+          "sha": "178c3f4eead1847def09e577233b323f92696797",
+          "date": "2026-09-25T10:31:09+03:00",
+          "subject": "first commit"
+        }
+      ]
+    },
+    "macos_upstream": {
+      "url": "https://github.com/feg55/Zarp-MacOS.git",
+      "local_path": "_reference/Zarp-MacOS",
+      "head": "dca673a4df1e6d18999675f2f88b1f74922c305a",
+      "tree": "38305f39835a617166da2e80a0317b6e8cfac801",
+      "commit_date": "2026-10-08T22:53:13+03:00",
+      "tags_at_head": [],
+      "full_history": true,
+      "reachable_commits": 27,
+      "tracked_files": 164,
+      "history": [
+        {
+          "sha": "dca673a4df1e6d18999675f2f88b1f74922c305a",
+          "date": "2026-10-08T22:53:13+03:00",
+          "subject": "Release 0.2.0: drag-to-Applications disk image, simpler README"
+        },
+        {
+          "sha": "81577bb550aca529cfdb5808b3e0bcf3cc53eb4b",
+          "date": "2026-10-08T22:19:25+03:00",
+          "subject": "Fix Readme added more versions"
+        },
+        {
+          "sha": "f824c831ada6bb83346fa76d7311497097afafe7",
+          "date": "2026-10-08T22:12:55+03:00",
+          "subject": "BetterReadme"
+        },
+        {
+          "sha": "7bb384557a3757cfe00b961c2dd76884a7233d47",
+          "date": "2026-10-08T19:11:43+03:00",
+          "subject": "Prepare the first public release"
+        },
+        {
+          "sha": "6783fcba88e9738c59f70f49217a62389e81a52b",
+          "date": "2026-10-08T16:53:49+03:00",
+          "subject": "Its Work Now"
+        },
+        {
+          "sha": "5b4377536c1fe54ee9ccfd98100c4c10e5ef0519",
+          "date": "2026-10-06T12:18:49+03:00",
+          "subject": "Phase 9: package an unnotarized, Development-signed DMG"
+        },
+        {
+          "sha": "f3626da4f5140e90b854fcc6e531298c9c923b3a",
+          "date": "2026-10-06T11:25:13+03:00",
+          "subject": "Reconcile GUI with an already-live daemon tunnel after a GUI crash"
+        },
+        {
+          "sha": "55cbae0a4c4ca11ad6ad93cccc33f798ade2fb7c",
+          "date": "2026-09-26T10:50:49+03:00",
+          "subject": "Phase 8: install zarpd as a real LaunchDaemon via SMAppService"
+        },
+        {
+          "sha": "92467b2afbb23d898ece85a1d1620cf961b363e2",
+          "date": "2026-09-26T09:59:46+03:00",
+          "subject": "Document Phase 7.5: real Quick/Full Scan, persistence, and self-heal validation"
+        },
+        {
+          "sha": "43204d3e25221b4fa4f3dfcf60cfc14a3a78fb51",
+          "date": "2026-09-26T09:44:46+03:00",
+          "subject": "Fix two real bugs found by Phase 7.5 Quick/Full Scan testing"
+        },
+        {
+          "sha": "921d115faf9c864d479d3b2eaf91464a31f4c4ea",
+          "date": "2026-09-26T04:57:26+03:00",
+          "subject": "Fix two bugs found by real Phase 7 end-to-end testing"
+        },
+        {
+          "sha": "6c948de0c50924b1ddb40ebdaebb7d4896ca34e7",
+          "date": "2026-09-26T04:24:56+03:00",
+          "subject": "Stop building the rejected NetworkExtension approach into the app"
+        },
+        {
+          "sha": "c0de335ab7e227f6255d55aea7e47030feec5875",
+          "date": "2026-09-26T04:23:02+03:00",
+          "subject": "Phase 7: zarpd daemon + IPC, wired into the real Swift app"
+        },
+        {
+          "sha": "2fbd3b54853f6172ae8b5a1e9c500336e0ab9f97",
+          "date": "2026-09-26T04:14:10+03:00",
+          "subject": "Phase 6 mostly done: HTTP/2 MASQUE + TLS split work, disorder doesn't"
+        },
+        {
+          "sha": "c0cfae7940d6cd750a2ed524f00a817b3b84dfc2",
+          "date": "2026-09-26T03:58:43+03:00",
+          "subject": "Phase 5 mechanism done: multi-step strategies + ip_ttl, verified"
+        },
+        {
+          "sha": "8d7df87f0a7d8bd90878b3b3da44ba748fa3c831",
+          "date": "2026-09-26T03:53:07+03:00",
+          "subject": "Phase 4 done: fake google x6 beats a real, active DPI block"
+        },
+        {
+          "sha": "c1567a07ca1f9b1d756ff7869eb8260526e3df6d",
+          "date": "2026-09-26T03:31:39+03:00",
+          "subject": "Phase 3 done: real internet traffic through utun -> MASQUE -> WARP"
+        },
+        {
+          "sha": "840ac40a494f52e581bd00431c4130f37652f12c",
+          "date": "2026-09-26T03:24:28+03:00",
+          "subject": "Phase 3 (partial): real WARP registration + MASQUE dial working"
+        },
+        {
+          "sha": "ca4bbb9a6e7aef010f0754b8aadc38f1a3413fcb",
+          "date": "2026-09-26T03:19:10+03:00",
+          "subject": "Phase 2 done: zarpd can own a real macOS utun"
+        },
+        {
+          "sha": "8281784f5051bcaeac681e6ca91e753144d39f94",
+          "date": "2026-09-26T03:05:51+03:00",
+          "subject": "Architecture pivot: Zarp owns the WARP connection (zarpd), not NE"
+        },
+        {
+          "sha": "8811824baef36f6666eebee33e6bf093e9c4f8e2",
+          "date": "2026-09-25T21:28:48+03:00",
+          "subject": "Add PoC OSSystemExtensionRequest activation trigger (DEBUG only)"
+        },
+        {
+          "sha": "096f7df727296dd9467d8f96dd4689204c10f64f",
+          "date": "2026-09-25T21:05:55+03:00",
+          "subject": "docs: record confirmed Personal Team capability gap"
+        },
+        {
+          "sha": "637b90cc0b6d4db7f768f566bbffa78f47c2299e",
+          "date": "2026-09-25T21:05:23+03:00",
+          "subject": "Add minimal NEFilterPacketProvider target; confirm Personal Team gap"
+        },
+        {
+          "sha": "206470e4cbc875a4fc29e12b27a57b00caf61dbd",
+          "date": "2026-09-25T11:56:59+03:00",
+          "subject": "Fix opt.autostart translation: says \"Windows\" in 7 languages"
+        },
+        {
+          "sha": "9c052eac97342438278e7a9da1e4074e33d42697",
+          "date": "2026-09-25T11:56:54+03:00",
+          "subject": "Fix app target: text wrapping, titlebar close wiring, test Info.plist"
+        },
+        {
+          "sha": "694d25d55b95c9b4ce9eedbb25b4c7a438646480",
+          "date": "2026-09-25T11:56:44+03:00",
+          "subject": "Fix ZarpCore actor-isolation, Codable, and cancellation-race bugs"
+        },
+        {
+          "sha": "178c3f4eead1847def09e577233b323f92696797",
+          "date": "2026-09-25T10:31:09+03:00",
+          "subject": "first commit"
+        }
+      ]
+    }
+  },
+  "macos_local_and_upstream_trees_equal": true,
+  "reference_ignore_rule": "_reference/ (existing .gitignore pattern)",
+  "android_submodules": [
+    "e802f02bae0fc55cbf681466a60e89c2e6773401 app/src/main/jni/hev-socks5-tunnel (2.17.1-7-ge802f02)",
+    " 162dd996299fc2d2bff2dd63728f8a2cd71ed31a app/src/main/jni/hev-socks5-tunnel/src/core (1.6.4)",
+    " 328f35d903221b51811b3d02b277d665dfbdc75f app/src/main/jni/hev-socks5-tunnel/third-part/hev-task-system (5.10.3)",
+    " e22c9d2873cd5a8aade9deb2e518b75dab05170e app/src/main/jni/hev-socks5-tunnel/third-part/lwip (2.2.1.8)",
+    " efa36117a8646d26d12b58e05bac472d7854a70d app/src/main/jni/hev-socks5-tunnel/third-part/yaml (0.2.5.2)"
+  ],
+  "built_in_strategy_ids": {
+    "windows": [
+      "warp-q-google6",
+      "warp-q-google3",
+      "warp-q-vk6",
+      "warp-t-multidisorder",
+      "warp-q-google11",
+      "warp-q-google-vk",
+      "warp-t-google-md5",
+      "warp-t-seqovl",
+      "warp-q-google-ttl",
+      "warp-q-ipfrag8",
+      "warp-t-disorder-seqovl",
+      "warp-t-vk-seq",
+      "warp-q-fake-ipfrag",
+      "warp-t-hostfake",
+      "warp-t-fake-multi",
+      "warp-t-split-host",
+      "warp-q-google12",
+      "warp-t-split-sld",
+      "warp-t-split-endhost"
+    ],
+    "android": [
+      "warp-q-google6",
+      "warp-q-google3",
+      "warp-q-vk6",
+      "warp-q-google-vk",
+      "warp-q-google10",
+      "warp-q-google-ttl",
+      "warp-q-vk-ttl",
+      "warp-t-split",
+      "warp-t-disorder",
+      "warp-t-split-host",
+      "warp-t-split-sld",
+      "warp-t-split-endhost",
+      "warp-q-google12",
+      "direct",
+      "direct-h2"
+    ],
+    "macos": [
+      "warp-q-google6",
+      "warp-q-google3",
+      "warp-q-vk6",
+      "warp-q-google-vk",
+      "warp-q-google10",
+      "warp-q-google-ttl",
+      "warp-q-vk-ttl",
+      "warp-q-google-bad",
+      "warp-wg-google6",
+      "warp-wg-stun",
+      "warp-wg-vk10",
+      "warp-wg-google-ttl",
+      "warp-t-google-md5",
+      "warp-t-seqovl",
+      "warp-t-vk-seq",
+      "warp-t-hostfake",
+      "warp-t-split",
+      "warp-t-disorder",
+      "direct",
+      "direct-h2"
+    ]
+  },
+  "strategy_counts": {
+    "windows": 19,
+    "android": 15,
+    "macos_total": 20,
+    "macos_executable": 11,
+    "macos_unsupported": 9
+  },
+  "android_strategy_ids_missing_on_macos": [
+    "warp-q-google12",
+    "warp-t-split-endhost",
+    "warp-t-split-host",
+    "warp-t-split-sld"
+  ],
+  "windows_strategy_ids_missing_on_macos": [
+    "warp-q-fake-ipfrag",
+    "warp-q-google11",
+    "warp-q-google12",
+    "warp-q-ipfrag8",
+    "warp-t-disorder-seqovl",
+    "warp-t-fake-multi",
+    "warp-t-multidisorder",
+    "warp-t-split-endhost",
+    "warp-t-split-host",
+    "warp-t-split-sld"
+  ],
+  "dependency_versions": {
+    "windows_sing_box": "1.13.14",
+    "windows_xray": "26.7.28",
+    "android_sing_box": "1.13.14",
+    "android_xray": "26.9.30 (b26a91de4f32)"
+  },
+  "verification": {
+    "macos_make_test": "passed",
+    "macos_swift_tests": 175,
+    "macos_swift_failures": 0,
+    "macos_go_race_packages_passed": 6,
+    "local_log": "_reference/analysis-evidence/macos-local-tests.log",
+    "initial_sandbox_run": "Loopback TCP/UDP and Unix socket binding denied; completed rerun outside sandbox. No VPN, DNS or route changes.",
+    "windows_tests_run_in_this_audit": false,
+    "android_tests_run_in_this_audit": false,
+    "live_vpn_tests_run_in_this_audit": false
+  },
+  "limits": [
+    "Tags identify analyzed source snapshots; publishing GitHub Releases was not independently checked.",
+    "Android verification notes contain historical uncommitted/unreleased text, despite being checked in at the analyzed tag.",
+    "Protocol traffic/DPI claims recorded by upstream authors are historical evidence, not reproductions during this audit.",
+    "Recommended external engine plus DPI relay architecture requires macOS TCP/UDP/XHTTP/ECH and process-lookup proofs before implementation commitment."
+  ]
+}

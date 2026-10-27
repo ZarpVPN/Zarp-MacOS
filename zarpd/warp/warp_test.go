@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"io"
 	"net"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 // ---- DialH3: the socket is closed on every failure (regression: it used to leak)
@@ -367,6 +369,9 @@ func TestDesyncConnDeliversTheWholeClientHelloInOrder(t *testing.T) {
 	}
 	host := "consumer-masque.cloudflareclient.com"
 	hello := append([]byte{0x16, 0x03, 0x01, 0x02, 0x00}, []byte("....................."+host+"....................")...)
+	// A complete ClientHello record is required by crypto/tls's write contract.
+	hello = append(hello[:5], append([]byte{1, 0, 0, byte(len(hello) - 5)}, hello[5:]...)...)
+	binary.BigEndian.PutUint16(hello[3:5], uint16(len(hello)-5))
 	for _, mode := range []DesyncMode{DesyncSplit} { // disorder needs a real path to retransmit; covered by the on-device test
 		conn := NewDesyncConn(raw.(*net.TCPConn), &DesyncSpec{Mode: mode, Pos: []string{"1", "host", "midsld"}}, host)
 		n, err := conn.Write(hello)
@@ -417,5 +422,49 @@ func TestDesyncConnLeavesNonTLSAndShortWritesAlone(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if received.Load() != 18 {
 		t.Fatalf("receiver saw %d bytes", received.Load())
+	}
+}
+
+// IPv6 control fakes must use ip6_ttl rather than the IPv4 value, then restore it.
+func TestIPv6FakesUseHopLimitAndRestoreIt(t *testing.T) {
+	server, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6loopback})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	pc := ipv6.NewPacketConn(server)
+	if err := pc.SetControlMessage(ipv6.FlagHopLimit, true); err != nil {
+		t.Fatal(err)
+	}
+	client, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6unspecified})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	dst := server.LocalAddr().(*net.UDPAddr)
+	before, err := getTTL(client, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = SendFakes(client, dst, []FakeStep{{Blob: []byte("fake"), Repeats: 1, TTL: 4, HopLimit: 7}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = server.SetReadDeadline(time.Now().Add(time.Second))
+	buf := make([]byte, 64)
+	n, cm, _, err := pc.ReadFrom(buf)
+	if err != nil || cm == nil || cm.HopLimit != 7 || string(buf[:n]) != "fake" {
+		t.Fatalf("hop limit: cm=%v err=%v", cm, err)
+	}
+	after, err := getTTL(client, true)
+	if err != nil || after != before {
+		t.Fatalf("hop limit not restored: %d -> %d, %v", before, after, err)
+	}
+	if _, err := client.WriteToUDP([]byte("real"), dst); err != nil {
+		t.Fatal(err)
+	}
+	_, cm, _, err = pc.ReadFrom(buf)
+	if err != nil || cm == nil || (before > 0 && cm.HopLimit != before) || cm.HopLimit == 7 {
+		t.Fatalf("real packet hop limit: %v %v", cm, err)
 	}
 }

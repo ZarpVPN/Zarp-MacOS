@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZarpCore
 
@@ -5,6 +6,7 @@ import ZarpCore
 /// `Table` column closures stay pure formatting.
 private struct StrategyRow: Identifiable {
     let strategy: Strategy
+    let displayName: String
     let isCurrent: Bool
     let resultText: String
     let resultColor: Color
@@ -28,13 +30,15 @@ struct StrategiesView: View {
     @State private var showingCustomStrategiesSheet = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(vm.localization.string("settings.strategy"))
-                .font(Theme.font(15, weight: .bold))
-                .foregroundColor(Theme.text)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(vm.localization.string("settings.strategy"))
+                    .font(Theme.font(15, weight: .bold)).foregroundColor(Theme.text)
+                Spacer()
+                countryMenu
+            }
             Text(vm.localization.string("settings.explain"))
-                .font(Theme.font(11.5))
-                .foregroundColor(Theme.textDim)
+                .font(Theme.font(11.5)).foregroundColor(Theme.textDim)
                 .fixedSize(horizontal: false, vertical: true)
 
             table
@@ -62,8 +66,8 @@ struct StrategiesView: View {
                 .foregroundColor(Theme.textDim)
                 .lineLimit(1)
         }
-        .padding(20)
         .background(Theme.back)
+        .onChange(of: vm.strategies.map(\.id)) { _, ids in selection.formIntersection(Set(ids)) }
         .sheet(isPresented: $showingCustomStrategiesSheet) {
             CustomStrategiesSheet(vm: vm, isPresented: $showingCustomStrategiesSheet)
         }
@@ -78,7 +82,7 @@ struct StrategiesView: View {
                 // Never attempted, so never a result: say plainly that this port can't do it, and
                 // why (tooltip) — instead of a "not tested" that suggests pressing Test would help.
                 return StrategyRow(
-                    strategy: s,
+                    strategy: s, displayName: s.name(using: vm.localization),
                     isCurrent: false,
                     resultText: vm.localization.string("result.unavailable"),
                     resultColor: Theme.textDisabled,
@@ -89,13 +93,14 @@ struct StrategiesView: View {
             }
             let (text, color) = Self.resultCell(result, using: vm.localization)
             return StrategyRow(
-                strategy: s,
+                strategy: s, displayName: s.name(using: vm.localization),
                 isCurrent: s.id == vm.selectedStrategyId,
                 resultText: text,
                 resultColor: color,
                 connectText: (result?.ok ?? false) ? "\(result!.connectMs)" : "",
                 pingText: (result?.ok ?? false) ? "\(result!.pingMs)" : "",
-                tooltip: s.requiresDesync ? s.args : vm.localization.string("settings.directTip")
+                tooltip: text + "\n" + (s.requiresDesync ? s.args : vm.localization.string("settings.directTip"))
+                    + (result?.confirmed == true ? "\n" + vm.localization.string(result?.independent == true ? "result.independent" : "result.freshOnly") : "")
             )
         }
     }
@@ -106,59 +111,52 @@ struct StrategiesView: View {
         return s.unsupportedReason != nil
     }
 
-    private var table: some View {
-        Table(rows, selection: $selection) {
-            TableColumn("") { row in
-                Text(row.isCurrent ? "✔" : "")
-                    .font(Theme.font(12, weight: .bold))
-                    .foregroundColor(Theme.accent)
+    private var countryMenu: some View {
+        DarkMenu(title: vm.localization.string("strategy.countrySelection", [countrySelection]), width: 218) {
+            Button {
+                selection.removeAll()
+                vm.updateSettings { $0.strategyCountries = "all" }
+            } label: {
+                Label(vm.localization.string("strategy.allCountries"), systemImage: StrategyFilter.countries(vm.settings.strategyCountries).isEmpty ? "checkmark" : "")
             }
-            .width(26)
-
-            TableColumn(vm.localization.string("col.strategy")) { row in
-                Text(row.strategy.name(using: vm.localization))
-                    .font(Theme.font(12, weight: row.isCurrent ? .bold : .regular))
-                    .foregroundColor(Theme.text)
-                    .lineLimit(1)
-                    .help(row.tooltip)
+            Divider()
+            ForEach(StrategyCountry.allCases, id: \.self) { country in
+                Toggle(countryName(country), isOn: Binding(
+                    get: { StrategyFilter.countries(vm.settings.strategyCountries).contains(country) },
+                    set: { _ in
+                        selection.removeAll()
+                        vm.updateSettings { $0.strategyCountries = StrategyFilter.toggle($0.strategyCountries, country: country) }
+                    }
+                ))
             }
-            .width(min: 160, ideal: 230)
-
-            TableColumn(vm.localization.string("col.protocol")) { row in
-                Text(row.strategy.transport.title)
-                    .font(Theme.font(11.5))
-                    .foregroundColor(Theme.textDim)
-            }
-            .width(min: 90, ideal: 108)
-
-            TableColumn(vm.localization.string("col.result")) { row in
-                Text(row.resultText)
-                    .font(Theme.font(11.5))
-                    .foregroundColor(row.resultColor)
-                    .lineLimit(1)
-            }
-            .width(min: 140, ideal: 220)
-
-            TableColumn(vm.localization.string("col.connect")) { row in
-                Text(row.connectText)
-                    .font(Theme.font(11.5))
-                    .foregroundColor(Theme.textDim)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 60, ideal: 76)
-
-            TableColumn(vm.localization.string("col.ping")) { row in
-                Text(row.pingText)
-                    .font(Theme.font(11.5))
-                    .foregroundColor(Theme.textDim)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 54, ideal: 68)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: false))
-        .background(Theme.panel)
-        .scrollContentBackground(.hidden)
-        .frame(minHeight: 260, idealHeight: 320)
+        .accessibilityLabel(vm.localization.string("strategy.countries"))
+        .disabled(vm.isBusy)
+        .help(vm.localization.string("strategy.countryHint"))
+    }
+
+    private var countrySelection: String {
+        let selected = StrategyFilter.countries(vm.settings.strategyCountries)
+        return selected.isEmpty ? vm.localization.string("strategy.allCountries") :
+            StrategyCountry.allCases.filter { selected.contains($0) }.map(countryName).joined(separator: ", ")
+    }
+
+    private func countryName(_ country: StrategyCountry) -> String {
+        switch country {
+        case .ru: return vm.localization.string("strategy.countryRU")
+        case .ir: return vm.localization.string("strategy.countryIR")
+        case .cn: return vm.localization.string("strategy.countryCN")
+        }
+    }
+
+    private var table: some View {
+        StrategyTable(rows: rows, selection: $selection,
+                      titles: ["", "col.strategy", "col.protocol", "col.result", "col.connect", "col.ping"].map { $0.isEmpty ? "" : vm.localization.string($0) }) { id in
+            guard !vm.isBusy, let strategy = vm.strategies.first(where: { $0.id == id }), strategy.unsupportedReason == nil else { return }
+            vm.use(strategy)
+        }
+        .frame(height: 228)
+        .overlay(Rectangle().stroke(Theme.border, lineWidth: 1))
     }
 
     /// Same rule as Windows `SettingsForm.FillList`: not tested (dim) · works ✔✔ (ok, confirmed)
@@ -191,6 +189,151 @@ struct StrategiesView: View {
     }
 }
 
+/// Native table keeps Windows row density while retaining keyboard and VoiceOver navigation.
+private struct StrategyTable: NSViewRepresentable {
+    let rows: [StrategyRow]
+    @Binding var selection: Set<String>
+    let titles: [String]
+    let onUse: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = true
+        scroll.backgroundColor = NSColor(Theme.panel)
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = false
+        scroll.appearance = NSAppearance(named: .darkAqua)
+        let table = NSTableView()
+        table.userInterfaceLayoutDirection = .leftToRight
+        scroll.userInterfaceLayoutDirection = .leftToRight
+        table.identifier = NSUserInterfaceItemIdentifier("strategy-table")
+        table.backgroundColor = NSColor(Theme.panel)
+        table.gridColor = NSColor(Theme.border)
+        table.gridStyleMask = .solidVerticalGridLineMask
+        table.rowSizeStyle = .custom
+        table.usesAutomaticRowHeights = false
+        table.rowHeight = 19
+        table.intercellSpacing = NSSize(width: 10, height: 0)
+        table.usesAlternatingRowBackgroundColors = false
+        table.allowsMultipleSelection = true
+        table.allowsEmptySelection = true
+        table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
+        table.dataSource = context.coordinator
+        table.delegate = context.coordinator
+        table.target = context.coordinator
+        table.doubleAction = #selector(Coordinator.useRow(_:))
+        let identifiers = ["current", "name", "protocol", "result", "connect", "ping"]
+        let widths: [CGFloat] = [24, 250, 126, 220, 78, 64]
+        let minimums: [CGFloat] = [24, 190, 108, 150, 78, 64]
+        for index in identifiers.indices {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifiers[index]))
+            column.headerCell = DarkTableHeaderCell(textCell: titles[index])
+            column.headerCell.alignment = index >= 4 ? .right : .left
+            column.width = widths[index]
+            column.minWidth = minimums[index]
+            if index == 0 || index >= 4 {
+                column.maxWidth = widths[index]
+                column.resizingMask = []
+            } else { column.resizingMask = [.autoresizingMask, .userResizingMask] }
+            table.addTableColumn(column)
+        }
+        table.headerView?.frame.size.height = 25
+        scroll.documentView = table
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let table = scroll.documentView as? NSTableView else { return }
+        let coordinator = context.coordinator
+        coordinator.parent = self
+        coordinator.syncing = true
+        defer { coordinator.syncing = false }
+        for (index, column) in table.tableColumns.enumerated() { column.headerCell.stringValue = titles[index] }
+        table.reloadData()
+        table.selectRowIndexes(IndexSet(rows.indices.filter { selection.contains(rows[$0].id) }), byExtendingSelection: false)
+    }
+
+    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        var parent: StrategyTable
+        var syncing = false
+        init(_ parent: StrategyTable) { self.parent = parent }
+        func numberOfRows(in tableView: NSTableView) -> Int { parent.rows.count }
+        func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { DarkTableRowView() }
+        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row index: Int) -> NSView? {
+            guard parent.rows.indices.contains(index), let column = tableColumn else { return nil }
+            let row = parent.rows[index]
+            let cell = tableView.makeView(withIdentifier: column.identifier, owner: self) as? NSTableCellView ?? makeCell(column.identifier)
+            guard let field = cell.textField else { return cell }
+            var color = Theme.textDim
+            field.font = NSFont.systemFont(ofSize: 11.5, weight: .regular)
+            field.alignment = .left
+            switch column.identifier.rawValue {
+            case "current": field.stringValue = row.isCurrent ? "✔" : ""; color = Theme.accent
+            case "name":
+                field.stringValue = row.displayName
+                color = Theme.text
+                field.font = NSFont.systemFont(ofSize: 11.5, weight: row.isCurrent ? .semibold : .regular)
+            case "protocol": field.stringValue = row.strategy.transportTitle
+            case "result": field.stringValue = row.resultText; color = row.resultColor
+            case "connect": field.stringValue = row.connectText; field.alignment = .right
+            default: field.stringValue = row.pingText; field.alignment = .right
+            }
+            field.textColor = NSColor(color)
+            cell.toolTip = row.tooltip
+            return cell
+        }
+
+        private func makeCell(_ id: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+            let cell = NSTableCellView()
+            cell.identifier = id
+            let field = NSTextField(labelWithString: "")
+            field.translatesAutoresizingMaskIntoConstraints = false
+            field.lineBreakMode = .byTruncatingTail
+            field.maximumNumberOfLines = 1
+            cell.addSubview(field)
+            cell.textField = field
+            NSLayoutConstraint.activate([
+                field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -2),
+                field.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+            ])
+            return cell
+        }
+
+        func tableViewSelectionDidChange(_ notification: Notification) {
+            guard !syncing, let table = notification.object as? NSTableView else { return }
+            parent.selection = Set(table.selectedRowIndexes.compactMap { parent.rows.indices.contains($0) ? parent.rows[$0].id : nil })
+        }
+        @objc func useRow(_ table: NSTableView) {
+            guard parent.rows.indices.contains(table.clickedRow) else { return }
+            parent.onUse(parent.rows[table.clickedRow].id)
+        }
+    }
+}
+
+private final class DarkTableRowView: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        NSColor(Theme.panelHover).setFill()
+        bounds.fill()
+    }
+}
+
+private final class DarkTableHeaderCell: NSTableHeaderCell {
+    override func draw(withFrame rect: NSRect, in controlView: NSView) {
+        NSColor(Theme.back).setFill()
+        rect.fill()
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        (stringValue as NSString).draw(in: rect.insetBy(dx: 7, dy: 5), withAttributes: [
+            .font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor(Theme.textDim), .paragraphStyle: paragraph
+        ])
+    }
+}
+
 /// Windows Zarp opens `strategies.txt` in Notepad (`SettingsForm.OpenCustomFile`) and reloads the
 /// catalog when the user closes it. This sheet is the SwiftUI-native equivalent: an editable text
 /// view over the real file — loaded when the sheet opens, written back by Save (which also reloads
@@ -210,6 +353,7 @@ private struct CustomStrategiesSheet: View {
                 .font(Theme.font(14, weight: .bold))
                 .foregroundColor(Theme.text)
             TextEditor(text: $text)
+                .environment(\.layoutDirection, .leftToRight)
                 .font(Theme.monospaced(11.5))
                 .foregroundColor(Theme.text)
                 .scrollContentBackground(.hidden)

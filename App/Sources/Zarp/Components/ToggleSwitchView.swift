@@ -10,7 +10,7 @@ struct ToggleSwitchView: View {
 
     @State private var isHovering = false
 
-    private let trackHeight: CGFloat = 18
+    private let trackHeight: CGFloat = 20
     private var trackWidth: CGFloat { trackHeight * 1.8 }
 
     var body: some View {

@@ -3,126 +3,51 @@ import SwiftUI
 import ZarpCore
 import ZarpdIPC
 
-/// Settings window: strategies table on top, the zarpd daemon's status, and options below — the
-/// same sections as Windows Zarp's `SettingsForm` (`UI/SettingsForm.cs`) plus the daemon panel.
-/// 880 pt wide at minimum: the six strategy columns need about 825 pt with their cell padding, and
-/// anything narrower pushes "Connect, ms" and "Ping, ms" out of sight behind a horizontal scroll bar.
+/// A separate compact window, with the strategy list and two option columns.
 struct SettingsView: View {
     @ObservedObject var vm: AppViewModel
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                StrategiesView(vm: vm)
-
-                Divider().overlay(Theme.border)
-
-                daemonSection
-
-                Divider().overlay(Theme.border)
-
-                optionsSection
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    StrategiesView(vm: vm)
+                    HStack(spacing: 8) {
+                        actionButton(vm.localization.string("settings.connection"), enabled: vm.isReady) { openWindow(id: "connection") }
+                        actionButton(vm.localization.string("apps.title"), enabled: vm.isReady) { openWindow(id: "applications") }
+                        Spacer()
+                    }
+                    optionsSection
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.bottom, 20)
+            HStack(spacing: 8) {
+                Text("Zarp \(appVersion)").font(Theme.font(11)).foregroundColor(Theme.textDim)
+                Spacer()
+                actionButton(vm.localization.string("btn.licenses")) { vm.revealLicenses() }
+                actionButton(vm.localization.string("settings.close")) { dismissWindow(id: "settings") }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Theme.back)
         }
         .background(Theme.back)
-        .frame(minWidth: 880, minHeight: 700)
-        .onAppear {
-            vm.refreshDaemonState()
-            vm.refreshAutostart()
-        }
-    }
-
-    // MARK: - zarpd daemon
-
-    private var daemonSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(vm.localization.string("daemon.title"))
-                .font(Theme.font(15, weight: .bold))
-                .foregroundColor(Theme.text)
-
-            HStack(spacing: 10) {
-                Circle().fill(daemonStatusColor).frame(width: 9, height: 9)
-                Text(daemonStatusText)
-                    .font(Theme.font(12.5))
-                    .foregroundColor(Theme.text)
-                Spacer()
-                daemonActionButtons
-            }
-
-            Text(daemonPingText)
-                .font(Theme.font(11.5))
-                .foregroundColor(Theme.textDim)
-
-            if vm.daemonStale, let ping = vm.daemonPing {
-                Text(vm.localization.string("daemon.stale", [ping.version, AppViewModel.appVersion]))
-                    .font(Theme.font(11))
-                    .foregroundColor(Theme.busy)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if let err = vm.daemonActionError {
-                Text(err)
-                    .font(Theme.font(11))
-                    .foregroundColor(Theme.bad)
-            }
-        }
-        .padding(.horizontal, 20)
-    }
-
-    @ViewBuilder
-    private var daemonActionButtons: some View {
-        switch vm.daemonState {
-        case .notInstalled, .notFound, .unknown:
-            actionButton(vm.localization.string("daemon.install")) { vm.installDaemon() }
-        case .requiresApproval:
-            actionButton(vm.localization.string("daemon.openSettings")) { vm.openDaemonApprovalSettings() }
-        case .enabled:
-            actionButton(vm.localization.string("daemon.restart")) { Task { await vm.restartDaemon() } }
-            actionButton(vm.localization.string("daemon.uninstall")) { vm.uninstallDaemon() }
-        }
-        actionButton(vm.localization.string("daemon.refresh")) {
-            vm.refreshDaemonState()
-            Task { await vm.pingDaemon() }
-        }
-    }
-
-    private var daemonStatusColor: Color {
-        switch vm.daemonState {
-        case .enabled: return (vm.daemonPing != nil) ? Theme.accent : Theme.busy
-        case .requiresApproval: return Theme.busy
-        case .notInstalled, .notFound, .unknown: return Theme.bad
-        }
-    }
-
-    private var daemonStatusText: String {
-        switch vm.daemonState {
-        case .notInstalled: return vm.localization.string("daemon.notInstalled")
-        case .requiresApproval: return vm.localization.string("daemon.requiresApproval")
-        case .enabled: return vm.localization.string("daemon.enabled")
-        case .notFound: return vm.localization.string("daemon.notFound")
-        case .unknown(let raw): return vm.localization.string("daemon.unknown", [raw])
-        }
-    }
-
-    private var daemonPingText: String {
-        if let ping = vm.daemonPing {
-            return vm.localization.string("daemon.respondingYes", [ping.version, String(ping.pid)])
-        }
-        if let err = vm.daemonPingError {
-            return vm.localization.string("daemon.respondingNo", [err])
-        }
-        return vm.localization.string("daemon.respondingUnknown")
+        .frame(minWidth: 820, minHeight: 690)
+        .onAppear { vm.refreshAutostart() }
+        .onDisappear { vm.reloadSources() }
     }
 
     private var optionsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(vm.localization.string("settings.options"))
                 .font(Theme.font(15, weight: .bold))
                 .foregroundColor(Theme.text)
 
-            HStack(alignment: .top, spacing: 32) {
-                VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 42) {
+                VStack(alignment: .leading, spacing: 6) {
                     ToggleSwitchView(title: vm.localization.string("opt.autoConnect"),
                                      isOn: Binding(get: { vm.settings.autoConnectOnStart },
                                                     set: { v in vm.updateSettings { $0.autoConnectOnStart = v } }))
@@ -134,25 +59,23 @@ struct SettingsView: View {
                         Text(vm.localization.string("opt.onClose"))
                             .font(Theme.font(12.5))
                             .foregroundColor(Theme.text)
-                        Picker("", selection: closeActionBinding) {
-                            Text(vm.localization.string("opt.closeAsk")).tag(0)
-                            Text(vm.localization.string("opt.closeTray")).tag(1)
-                            Text(vm.localization.string("opt.closeExit")).tag(2)
+                        DarkMenu(title: vm.localization.string(closeActionKeys[closeActionBinding.wrappedValue]), width: 220) {
+                            ForEach(closeActionKeys.indices, id: \.self) { index in
+                                Button(vm.localization.string(closeActionKeys[index])) { closeActionBinding.wrappedValue = index }
+                            }
                         }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
                         .accessibilityLabel(vm.localization.string("opt.closeAccessible"))
-                        .frame(width: 200)
                     }
 
                     ToggleSwitchView(title: vm.localization.string("opt.disconnectOnExit"),
                                      isOn: Binding(get: { vm.settings.disconnectOnExit },
                                                     set: { v in vm.updateSettings { $0.disconnectOnExit = v } }))
-                    ToggleSwitchView(title: vm.localization.string("opt.routeAll"),
+                    ToggleSwitchView(title: vm.localization.string(vm.connectionMode == .server ? "opt.routeAllServer" : "opt.routeAll"),
                                      isOn: Binding(get: { vm.settings.routeAllTraffic },
-                                                    set: { v in vm.updateSettings { $0.routeAllTraffic = v } }))
+                                                    set: { v in vm.updateSettings { $0.routeAllTraffic = v } }),
+                                     isEnabled: vm.connectionMode != .server || !vm.settings.serverRouting.filtersApplications)
                         .help(vm.localization.string("opt.routeAllTip"))
-                    ToggleSwitchView(title: vm.localization.string("opt.overrideDNS"),
+                    ToggleSwitchView(title: vm.localization.string(vm.connectionMode == .server ? "opt.overrideDNSServer" : "opt.overrideDNS"),
                                      isOn: Binding(get: { vm.settings.overrideDNS && vm.settings.routeAllTraffic },
                                                     set: { v in vm.updateSettings { $0.overrideDNS = v } }),
                                      isEnabled: vm.settings.routeAllTraffic)
@@ -163,7 +86,7 @@ struct SettingsView: View {
                                      isOn: Binding(get: { vm.settings.isolateTests },
                                                     set: { v in vm.updateSettings { $0.isolateTests = v } }))
                 }
-                .frame(maxWidth: 340, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 14) {
                     labeledStepper(vm.localization.string("opt.timeout"),
@@ -179,19 +102,14 @@ struct SettingsView: View {
 
                     HStack(spacing: 8) {
                         actionButton(vm.localization.string("btn.dataFolder")) { openDataFolder() }
-                        actionButton(vm.localization.string("btn.licenses")) { vm.revealLicenses() }
+                        Spacer(minLength: 0)
                     }
 
-                    Text("Zarp \(appVersion)")
-                        .font(Theme.font(11))
-                        .foregroundColor(Theme.textDim)
                 }
-                .frame(maxWidth: 280, alignment: .leading)
+                .frame(width: 320, alignment: .leading)
 
-                Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 20)
     }
 
     private func labeledStepper(_ title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
@@ -201,9 +119,12 @@ struct SettingsView: View {
                 .foregroundColor(Theme.text)
                 .frame(maxWidth: 170, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
             NumberStepperView(value: value, range: range)
         }
     }
+
+    private let closeActionKeys = ["opt.closeAsk", "opt.closeTray", "opt.closeExit"]
 
     private var closeActionBinding: Binding<Int> {
         Binding(

@@ -4,8 +4,12 @@
 <dict>
 	<key>Label</key>
 	<string>io.github.zarp.mac.zarpd</string>
-	<key>BundleProgram</key>
-	<string>Contents/MacOS/zarpd</string>
+	<key>Program</key>
+	<string>/Applications/Zarp.app/Contents/MacOS/zarpd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Applications/Zarp.app/Contents/MacOS/zarpd</string>
+	</array>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
 		<string>io.github.zarp.mac</string>

@@ -4,7 +4,7 @@ Start here when something does not work. If it is still stuck, open an issue wit
 include the log (see [Where the logs are](#where-the-logs-are)).
 
 - [macOS will not open Zarp](#macos-will-not-open-zarp)
-- [The daemon will not install, or says it needs approval](#the-daemon-will-not-install-or-says-it-needs-approval)
+- [Connection preparation or macOS approval](#connection-preparation-or-macos-approval)
 - [Zarp refuses because of another VPN](#zarp-refuses-because-of-another-vpn)
 - [No strategy works](#no-strategy-works)
 - [It connected, then the internet stopped](#it-connected-then-the-internet-stopped)
@@ -34,22 +34,45 @@ xattr -dr com.apple.quarantine /Applications/Zarp.app
 Check the download first if you did not build it yourself: compare `shasum -a 256 ~/Downloads/Zarp-*.dmg`
 with the value in the release notes.
 
-## The daemon will not install, or says it needs approval
+## Connection preparation or macOS approval
 
-The background service (`zarpd`) is what builds the tunnel; Settings > **zarpd daemon** shows its state.
+Zarp prepares its bundled background component automatically at launch and
+before connection, scan and WARP+ actions. There is no service-management screen.
+Registration, replacement after an update and recovery from a missing IPC socket
+are handled by the app. A responding component with active or unknown network
+work is preserved.
 
-- **"Zarp can only install its background service when it is in the Applications folder"** (or a message
-  about a disk image or a temporary download location): quit Zarp, move `Zarp.app` into `/Applications`,
-  eject the disk image, open Zarp from there and click **Install** again. The service runs as root, so it is
-  deliberately refused anywhere else.
-- **"Installed: needs approval in System Settings"**: open **System Settings > General > Login Items &
-  Extensions** and switch Zarp on under *Allow in the Background*. The button **Open System Settings...**
-  takes you there. This is needed once.
-- **"Not responding"** after approving: click **Restart**, or in Terminal
-  `sudo launchctl kickstart -k system/io.github.zarp.mac.zarpd`.
-- **"The running service is version X, but this app is Y"** (after an update): click **Restart**; the app
-  also does this itself once.
-- **"Not found"**: the app bundle is damaged or incomplete; download it again.
+- Keep the app at `/Applications/Zarp.app`, eject the disk image and open the installed
+  copy. Zarp cannot prepare a privileged component from a temporary location.
+- Approve macOS authorization if requested. If background approval is needed,
+  Zarp opens **System Settings > General > Login Items & Extensions**. Allow Zarp
+  under *Allow in the Background*. An app cannot grant itself this permission.
+- Preparation has bounded readiness checks and does not repeatedly display
+  authorization requests. If it fails, the main window shows a connection message.
+  Press the usual power button to retry; no manual service commands are needed.
+- If preparation still fails, include the app log in a bug report. Zarp does not
+  reset other background items or disable another VPN to make preparation succeed.
+
+Starting in 0.4.3, the journal records preparation phases and a bounded native
+error domain/code or `startup_timeout`. It excludes error UserInfo, account data
+and license keys. The release manifest specifies the absolute executable path
+instead of relying on a cached background-item container to resolve BundleProgram.
+
+## A scan reports QUIC reset or a server-key mismatch
+
+From 0.4.5, the journal records the resolved endpoint and failing connection
+phase. A recently closed scan handle retains its original reason, including a
+QUIC stateless reset, instead of reporting only `no open connection`. A reset
+does not by itself identify carrier DPI as its source.
+
+HTTP2 tests use the account's dedicated TCP endpoint. An explicit key-mismatch
+message means the peer did not match the trusted enrolled key; changing a split
+position or extending the timeout does not repair that trust failure. Pin
+verification stays enabled. HTTP2 results created under the older shared-pool
+selection policy require fresh verification after the update.
+
+Include the app journal and matching daemon interval when reporting these
+errors. No license key, private account file or subscription link is needed.
 
 ## Zarp refuses because of another VPN
 

@@ -38,21 +38,48 @@ Join our [Zarp Community](https://github.com/orgs/ZarpVPN/discussions)!
 - **One button.** The first press searches for the fastest working strategy, later presses connect right away.
 - **Its own WARP client.** Zarp registers a free anonymous WARP account (after you accept Cloudflare's terms) and speaks MASQUE to Cloudflare itself, over HTTP/3 or HTTP/2. No `warp-cli`, no official app.
 - **The whole Mac.** While it says *Connected*, all traffic (IPv4 and IPv6) and DNS go through WARP. The routes disappear with the tunnel, so even a crashed daemon leaves your network working.
-- **Honest testing.** Each test runs on a fresh WARP endpoint and every candidate is checked twice. A strategy passes only if `cdn-cgi/trace` reports `warp=on`.
+- **Honest testing.** Quick Scan counts confirmed strategies and continues after failed rechecks. Two fresh successful connections confirm a candidate; the tooltip separately reports whether actual endpoints differed. A test passes only when the tunnel reports WARP traffic.
 - **Self-healing.** If the saved strategy stops working, Zarp tries the other verified ones before searching again, and it reconnects by itself when the connection drops.
-- **The same strategies as Windows and Android.** Eleven of the 20 run on macOS; those that need raw sockets or WireGuard are shown as unavailable, with the reason.
-- **Your language.** English, Русский, Español, Português, 中文, हिन्दी, Français and Deutsch. Zarp follows the macOS language (English if it is not on the list), and the globe button switches it on the fly.
+- **Portable WARP strategies.** Twenty-four executable profiles include the current Google x11/x12 and host/sld/endhost TLS splits. All/RU/IR/CN filters apply to scans, Connect, and fallback. Unsupported custom techniques carry a reason and never execute as direct connections.
+- **Your language.** English, Русский, Español, Português, 中文, हिन्दी, Français, Deutsch and فارسی. Zarp follows the macOS language (English if it is not on the list), and the globe button switches it on the fly. Persian uses RTL with LTR technical inputs and tables.
+- **Protected account setup.** If the account API cannot be reached, Zarp can try portable TLS zapret strategies for registration, MASQUE enrollment and WARP+ confirmation. Partial enrollment resumes with the same device. Lost creation responses pause automatic registration to avoid duplicate accounts. This does not start a tunnel or change routes, DNS or system proxies.
+
+Current source builds also include WARP+ account management, manual servers and
+HTTPS subscriptions, source selection, and compatible server + zapret pairs.
+VLESS, Trojan, Hysteria2 and XHTTP use bundled, pinned engines through the outer
+strategy relay. These additions passed private HTTPS/UDP checks and build checks;
+actual product TUN and signed-installation acceptance remain unverified. See the
+[Windows release review and implementation evidence](docs/WINDOWS_RELEASE_REVIEW.md).
+
+Release 1.0.0 includes the WARP transport fixes and the source/server workflow.
+See the [release notes](docs/releases/1.0.0.md) for verified behavior and remaining
+limitations. Plain WARP connections are disabled.
 
 ## Usage
 
 ### First launch
 
-1. Open the disk image, drag **Zarp** to **Applications** and eject the image. Run Zarp from Applications, not from the image or Downloads: the background service only installs from there.
+1. Open the disk image, drag **Zarp.app** to **Applications** and eject the image. Keep the installed name and path as `/Applications/Zarp.app`: release connection preparation validates this location.
 2. Open Zarp. macOS blocks the first launch; allow it once in **System Settings > Privacy & Security > Open Anyway** ([screenshots below](#why-wont-zarp-open)).
-3. Click the gear icon, find the **zarpd daemon** section and click **Install**. macOS shows a "background item added" notification: open **System Settings > General > Login Items & Extensions** and switch Zarp on under *Allow in the Background*. This is needed once.
+3. Zarp prepares its connection automatically, including after an app update. If macOS requests authorization, approve it. If background activity approval is required, Zarp opens **System Settings > General > Login Items & Extensions**: allow Zarp under *Allow in the Background*.
 4. Turn off any other VPN, then press the power button. The first time, Zarp asks to create a free anonymous WARP account for this Mac and accept Cloudflare's terms on your behalf, then searches for a strategy and connects. The first search takes a minute or two.
 
-Settings offer two searches. **Quick scan** (also used by the power button) stops after 3 working strategies; the number is adjustable. **Full scan** tests every strategy: slower, but nothing is skipped, so it finds the fastest one for sure. Settings also has switches for *Route all traffic through WARP* and *Use Cloudflare DNS*.
+Settings also accepts a custom public numeric WARP endpoint list with IPv4 and IPv6 addresses. A different list invalidates prior results. One endpoint can confirm fresh connections but cannot establish endpoint independence. Live verification of these implementation changes remains pending user-run checks.
+
+Settings offer two searches. **Quick scan** (also used by the power button) stops after 3 confirmed strategies; the number is adjustable. **Full scan** tests every strategy: slower, but nothing is skipped, so it finds the fastest one for sure. Settings also has switches for *Route all traffic through WARP* and *Use Cloudflare DNS*.
+
+Before showing Connected, Zarp checks traffic across a stability interval.
+Repeated short connection losses trigger a bounded search for other protected
+strategies, including a different transport. Results from another access network
+are rechecked when switching between Wi-Fi and a phone hotspot.
+
+**Settings > Servers and subscriptions** imports VLESS, Trojan and Hysteria2 links,
+saves HTTPS subscriptions, downloads their server lists on **Refresh**, and keeps
+the last successful list if an update fails. You can cancel a download, delete a
+subscription and save a server selection for each source. Credentials and URLs
+are stored in private files. Select a source and server in the main window to
+find and confirm compatible server + zapret pairs. Product TUN and signed-release
+backend acceptance remain unverified.
 
 Closing the window asks whether to hide Zarp in the menu bar or quit. Select **Remember my choice** to make that action the default; Settings > **On close** changes it later. Quitting disconnects WARP unless you turn off *Disconnect WARP on exit*.
 
@@ -98,7 +125,7 @@ shasum -a 256 ~/Downloads/Zarp-*.dmg      # compare with the release notes
 
 ### What Zarp changes on your system
 
-- **A background service.** *Install* registers a root LaunchDaemon (`io.github.zarp.mac.zarpd`). It is the only part with elevated rights and the only part that touches the network configuration, and it does nothing until the app asks. The app itself runs as you.
+- **A background service.** Automatic preparation registers a root LaunchDaemon (`io.github.zarp.mac.zarpd`). It is the only part with elevated rights and the only part that touches the network configuration, and it does nothing until the app asks. The app itself runs as you.
 - **While connected:** a `utun` interface, routes that send all IPv4 and IPv6 traffic through it (your real default route is not modified), one host route that keeps Zarp's own connection to Cloudflare off the tunnel, and the DNS of your active network service pointed at Cloudflare. Disconnecting removes all of it and restores your DNS exactly as it was.
 - **Files:** settings and results in `~/Library/Application Support/Zarp`, logs in `~/Library/Logs/Zarp`, the WARP account (root-only) in `/Library/Application Support/Zarp`. The full list is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#9-data-logs-and-privacy).
 - Only if you turn it on: **Start with macOS** adds Zarp to your login items.
@@ -106,7 +133,7 @@ shasum -a 256 ~/Downloads/Zarp-*.dmg      # compare with the release notes
 ### Uninstall
 
 1. In Settings, turn off **Start with macOS** (if it is on) and disconnect.
-2. Settings > zarpd daemon > **Uninstall**, then quit Zarp and delete `/Applications/Zarp.app`.
+2. Quit Zarp. In **System Settings > General > Login Items & Extensions**, switch Zarp off under *Allow in the Background*, then delete `/Applications/Zarp.app`.
 3. Optionally delete the data. This removes the WARP account too, so the next install registers a new one:
 
    ```sh
@@ -131,8 +158,8 @@ A strategy is a WARP transport (MASQUE over HTTP/3 or HTTP/2) plus a zapret2 pro
 Your own strategies go into `strategies.txt` (*Custom strategies...* in Settings), in the same format as on Windows:
 
 ```
-# name | transport (h3, h2, wg) | zapret2 profile args
-My QUIC | h3 | --payload=quic_initial --lua-desync=fake:blob=quic_google:repeats=8
+# name | transport (h3, h2, wg) | zapret2 profile args | optional countries: ru,ir,cn
+My QUIC | h3 | --payload=quic_initial --lua-desync=fake:blob=quic_google:repeats=8 | ru,ir,cn
 ```
 
 Zarp supports plain fake packets (with `ip_ttl`, `ip6_ttl`, `repeats`) for `h3` and `multisplit` / `multidisorder` for `h2`; anything else, including every `wg` line, is listed as unavailable. See the [zapret2 manual](https://github.com/bol-van/zapret2/blob/master/docs/manual.en.md) for `--lua-desync` syntax.

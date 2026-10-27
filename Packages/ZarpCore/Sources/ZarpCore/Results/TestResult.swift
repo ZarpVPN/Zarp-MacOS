@@ -4,7 +4,7 @@ import Foundation
 /// (`Core/AppConfig.cs`) and Android Zarp's `TestResult.kt`, so the scoring and double-verification
 /// rules match both.
 public struct TestResult: Hashable, Sendable, Codable {
-    public let strategyId: String
+    public var strategyId: String
     public var ok: Bool = false
     public var connectMs: Int = 0
     public var pingMs: Int = 0
@@ -14,10 +14,16 @@ public struct TestResult: Hashable, Sendable, Codable {
     /// Error as a translation key + arguments, shown in the current language.
     public var errorKey: String?
     public var errorArgs: [String] = []
-    /// The failure happened on the second, independent check.
+    /// The failure happened on the second fresh connection.
     public var rechecked: Bool = false
-    /// Passed the second, independent check (different WARP endpoint, fresh attempt).
+    /// Passed two fresh connections. Endpoint independence is recorded separately.
     public var confirmed: Bool = false
+    public var independent: Bool = false
+    public var endpointReused: Bool = false
+    public var firstEndpoint: String?
+    public var configurationFingerprint: String?
+    public var endpointListFingerprint: String?
+    public var networkIdentity: String?
     /// The WARP endpoint this test used, for diagnostics (Android Zarp records this too; Windows
     /// only logs it).
     public var endpoint: String?
@@ -26,7 +32,9 @@ public struct TestResult: Hashable, Sendable, Codable {
     public init(strategyId: String, ok: Bool = false, connectMs: Int = 0, pingMs: Int = 0,
                 error: String? = nil, errorKey: String? = nil, errorArgs: [String] = [],
                 rechecked: Bool = false, confirmed: Bool = false, endpoint: String? = nil,
-                timestamp: Date = Date()) {
+                timestamp: Date = Date(), independent: Bool = false, endpointReused: Bool = false,
+                firstEndpoint: String? = nil, configurationFingerprint: String? = nil, endpointListFingerprint: String? = nil,
+                networkIdentity: String? = nil) {
         self.strategyId = strategyId
         self.ok = ok
         self.connectMs = connectMs
@@ -38,10 +46,17 @@ public struct TestResult: Hashable, Sendable, Codable {
         self.confirmed = confirmed
         self.endpoint = endpoint
         self.timestamp = timestamp
+        self.independent = independent
+        self.endpointReused = endpointReused
+        self.firstEndpoint = firstEndpoint
+        self.configurationFingerprint = configurationFingerprint
+        self.endpointListFingerprint = endpointListFingerprint
+        self.networkIdentity = networkIdentity
     }
 
     private enum CodingKeys: String, CodingKey {
         case strategyId, ok, connectMs, pingMs, error, errorKey, errorArgs, rechecked, confirmed, endpoint, timestamp
+        case independent, endpointReused, firstEndpoint, configurationFingerprint, endpointListFingerprint, networkIdentity
     }
 
     /// Lenient: only `strategyId` is required. A result written by an older build, or with one
@@ -58,12 +73,23 @@ public struct TestResult: Hashable, Sendable, Codable {
         rechecked = (try? c.decodeIfPresent(Bool.self, forKey: .rechecked)) ?? false
         confirmed = (try? c.decodeIfPresent(Bool.self, forKey: .confirmed)) ?? false
         endpoint = (try? c.decodeIfPresent(String.self, forKey: .endpoint)) ?? nil
+        firstEndpoint = (try? c.decodeIfPresent(String.self, forKey: .firstEndpoint)) ?? nil
+        configurationFingerprint = (try? c.decodeIfPresent(String.self, forKey: .configurationFingerprint)) ?? nil
+        endpointListFingerprint = (try? c.decodeIfPresent(String.self, forKey: .endpointListFingerprint)) ?? nil
+        networkIdentity = (try? c.decodeIfPresent(String.self, forKey: .networkIdentity)) ?? nil
+        endpointReused = (try? c.decodeIfPresent(Bool.self, forKey: .endpointReused)) ?? false
+        let first = firstEndpoint.flatMap(WarpEndpoint.init)
+        let last = endpoint.flatMap(WarpEndpoint.init)
+        independent = confirmed && first != nil && last != nil && first != last
+        endpointReused = first != nil && last != nil && first == last
         timestamp = (try? c.decodeIfPresent(Date.self, forKey: .timestamp)) ?? Date(timeIntervalSince1970: 0)
     }
 
     /// Lower is better. Ping weighs 4×: it affects every request after connecting, connecting
     /// happens once — same weighting as Windows `TestResult.Score` / Android `TestResult.score`.
-    public var score: Int { ok ? connectMs + pingMs * 4 : Int.max }
+    public static let latencyRange = 0...120_000
+    public var validLatencies: Bool { Self.latencyRange.contains(connectMs) && Self.latencyRange.contains(pingMs) }
+    public var score: Int { ok && validLatencies ? connectMs + pingMs * 4 : Int.max }
 
     public var errorMsg: Msg? { errorKey.map { Msg(key: $0, args: errorArgs) } }
 
@@ -89,8 +115,17 @@ public struct TestResult: Hashable, Sendable, Codable {
     /// Double-verification merge: the slower (more pessimistic) connect time, the average ping —
     /// same rule as Windows `Engine.SearchAndApplyAsync` / Android `TestResult.confirmed`.
     public static func confirmed(_ first: TestResult, _ second: TestResult) -> TestResult {
-        TestResult(strategyId: second.strategyId, ok: true, connectMs: max(first.connectMs, second.connectMs),
-                   pingMs: (first.pingMs + second.pingMs) / 2, confirmed: true, endpoint: second.endpoint,
-                   timestamp: second.timestamp)
+        let valid = first.ok && second.ok && first.validLatencies && second.validLatencies && first.strategyId == second.strategyId
+            && first.configurationFingerprint == second.configurationFingerprint && first.endpointListFingerprint == second.endpointListFingerprint
+            && first.networkIdentity == second.networkIdentity
+        let firstAddress = first.endpoint.flatMap(WarpEndpoint.init)
+        let secondAddress = second.endpoint.flatMap(WarpEndpoint.init)
+        let actual = firstAddress != nil && secondAddress != nil
+        return TestResult(strategyId: second.strategyId, ok: valid, connectMs: valid ? max(first.connectMs, second.connectMs) : 0,
+                   pingMs: valid ? (first.pingMs + second.pingMs) / 2 : 0, confirmed: valid, endpoint: second.endpoint,
+                   timestamp: second.timestamp, independent: valid && actual && firstAddress != secondAddress,
+                   endpointReused: actual && firstAddress == secondAddress, firstEndpoint: first.endpoint,
+                   configurationFingerprint: second.configurationFingerprint, endpointListFingerprint: second.endpointListFingerprint,
+                   networkIdentity: second.networkIdentity)
     }
 }

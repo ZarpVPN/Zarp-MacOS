@@ -42,11 +42,15 @@ type ExecRunner struct {
 }
 
 func (e ExecRunner) Run(name string, args ...string) (string, error) {
+	return e.RunContext(context.Background(), name, args...)
+}
+
+func (e ExecRunner) RunContext(parent context.Context, name string, args ...string) (string, error) {
 	timeout := e.Timeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	return string(out), err
@@ -66,9 +70,10 @@ var std = New(ExecRunner{})
 // any tunnel-related route changes so the WARP control socket can be bound to it explicitly
 // regardless of what the routing table looks like once the tunnel is up.
 type Physical struct {
-	Interface string
-	Index     int
-	Gateway   net.IP
+	Interface   string
+	Index       int
+	Gateway     net.IP
+	GatewayZone string
 }
 
 // IsTunnel reports whether the "physical" interface is itself a tunnel — i.e. another VPN or proxy
@@ -95,15 +100,26 @@ func parseRouteGet(out string) map[string]string {
 // CurrentDefault inspects `route -n get default` — shelling out rather than using a raw
 // PF_ROUTE/AF_ROUTE socket, the same pragmatic choice ConfigureAddress makes for `ifconfig`, and
 // much less code to get wrong than parsing routing socket messages by hand for a one-shot query.
-func (r *Router) CurrentDefault() (*Physical, error) {
-	out, err := r.run.Run(routeBin, "-n", "get", "default")
+func (r *Router) CurrentDefault() (*Physical, error) { return r.CurrentDefaultFamily(false) }
+
+// CurrentDefaultFamily selects the control connection's address family without changing routes.
+func (r *Router) CurrentDefaultFamily(v6 bool) (*Physical, error) {
+	args := []string{"-n", "get", "default"}
+	if v6 {
+		args = []string{"-n", "get", "-inet6", "default"}
+	}
+	out, err := r.run.Run(routeBin, args...)
 	if err != nil {
 		return nil, fmt.Errorf("route -n get default: %w: %s", err, strings.TrimSpace(out))
 	}
 	fields := parseRouteGet(out)
 	p := &Physical{Interface: fields["interface"]}
 	if gw := fields["gateway"]; gw != "" {
-		p.Gateway = net.ParseIP(gw)
+		parts := strings.SplitN(gw, "%", 2)
+		p.Gateway = net.ParseIP(parts[0])
+		if len(parts) == 2 {
+			p.GatewayZone = parts[1]
+		}
 	}
 	if p.Interface == "" {
 		return nil, fmt.Errorf("route -n get default: no interface in output:\n%s", out)
@@ -226,6 +242,9 @@ func routeErr(err error, out, what string) error {
 func (r *Router) routeInterface(dst string, host bool) (string, error) {
 	args := []string{"-n", "get"}
 	if host {
+		if strings.Contains(dst, ":") {
+			args = append(args, "-inet6")
+		}
 		args = append(args, "-host")
 	} else {
 		args = append(args, familyFlag(dst))
@@ -256,6 +275,9 @@ func (r *Router) DeleteRouteIfOurs(dst string, host bool, viaInterface string) (
 	}
 	args := []string{"-n", "delete"}
 	if host {
+		if strings.Contains(dst, ":") {
+			args = append(args, "-inet6")
+		}
 		args = append(args, "-host")
 	} else {
 		args = append(args, familyFlag(dst))

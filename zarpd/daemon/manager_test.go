@@ -31,11 +31,12 @@ func newFakeConn(name string) *fakeConn { return &fakeConn{name: name, done: mak
 func (c *fakeConn) Name() string          { return c.name }
 func (c *fakeConn) Done() <-chan struct{} { return c.done }
 func (c *fakeConn) Err() error            { c.mu.Lock(); defer c.mu.Unlock(); return c.err }
-func (c *fakeConn) Close() {
+func (c *fakeConn) Close() error {
 	c.mu.Lock()
 	c.closes++
 	c.mu.Unlock()
 	c.once.Do(func() { close(c.done) })
+	return nil
 }
 func (c *fakeConn) closeCount() int { c.mu.Lock(); defer c.mu.Unlock(); return c.closes }
 
@@ -146,6 +147,7 @@ func newHarness(t *testing.T, lease time.Duration) *harness {
 		Restart: func() { h.restarts.Add(1) },
 		Logf:    h.logs.Printf,
 	})
+	t.Cleanup(func() { _ = h.m.CloseAll() })
 	return h
 }
 
@@ -199,8 +201,8 @@ func codeOf(err error) string {
 	return ""
 }
 
-var persistent = ipc.OpenParams{Transport: "masqueH3", StrategyID: "warp-q-google6", Persistent: true, TimeoutMs: 15000}
-var scanTest = ipc.OpenParams{Transport: "masqueH3", StrategyID: "warp-q-google3", TimeoutMs: 15000}
+var persistent = ipc.OpenParams{Transport: "masqueH3", StrategyID: "warp-q-google6", Persistent: true, TimeoutMs: 15000, FakeSteps: []ipc.FakeStep{{Blob: "quic_google", Repeats: 6}}}
+var scanTest = ipc.OpenParams{Transport: "masqueH3", StrategyID: "warp-q-google3", TimeoutMs: 15000, FakeSteps: []ipc.FakeStep{{Blob: "quic_google", Repeats: 3}}}
 
 // ---- tests
 
@@ -213,6 +215,24 @@ func TestPing(t *testing.T) {
 	p := res.(ipc.PingResult)
 	if p.Version != "9.9.9" || p.Protocol != ipc.ProtocolVersion || !p.AccountRegistered || p.Pid == 0 {
 		t.Fatalf("%+v", p)
+	}
+	if p.RuntimeCapabilities == nil || p.RuntimeCapabilities.Version != 1 || len(p.RuntimeCapabilities.Modes) != 1 ||
+		p.RuntimeCapabilities.Modes[0] != "warp" || len(p.RuntimeCapabilities.Protocols) != 0 {
+		t.Fatal("ping must not promote loopback backend evidence to production server capability")
+	}
+}
+
+func TestStatusReportsActualWarpModeAndCapabilities(t *testing.T) {
+	h := newHarness(t, time.Minute)
+	idle := h.status(t)
+	if idle.ActiveMode != "" || idle.RuntimeCapabilities == nil || len(idle.RuntimeCapabilities.Protocols) != 0 {
+		t.Fatal("idle capabilities or active mode were incorrect")
+	}
+	h.open(t, persistent)
+	active := h.status(t)
+	if !active.Connected || active.ActiveMode != "warp" || active.RuntimeCapabilities == nil ||
+		len(active.RuntimeCapabilities.Protocols) != 0 {
+		t.Fatal("persistent WARP mode was not reported faithfully")
 	}
 }
 
@@ -329,7 +349,10 @@ func TestATunnelThatDiesOnItsOwnIsNoticedAndReported(t *testing.T) {
 	}
 	h.opener.conn(0).die(errors.New("connect-ip read: timeout: no recent network activity"))
 
-	waitFor(t, "the dead tunnel to be removed", func() bool { return !h.status(t).Connected })
+	waitFor(t, "the dead tunnel cleanup to complete", func() bool {
+		st := h.status(t)
+		return !st.Connected && !st.NetworkBusy
+	})
 	st := h.status(t)
 	if st.LastLoss == nil || st.LastLoss.ConnectionID != res.ConnectionID || !strings.Contains(st.LastLoss.Reason, "no recent network activity") || st.LastLoss.At == "" {
 		t.Fatalf("the loss must be reported with its reason: %+v", st.LastLoss)
@@ -503,6 +526,20 @@ func TestOpenValidatesBeforeDoingAnything(t *testing.T) {
 	}
 }
 
+func TestPlainWarpCannotReachTheOpenerOrReplaceAnActiveTunnel(t *testing.T) {
+	h := newHarness(t, time.Minute)
+	active := h.open(t, persistent)
+	for _, transport := range []string{"", "masqueH3", "masqueH2"} {
+		p := ipc.OpenParams{Transport: transport, StrategyID: "direct", Persistent: true}
+		if _, err := h.call(t, context.Background(), "open", p); codeOf(err) != ipc.CodeStrategyRequired {
+			t.Fatalf("plain WARP accepted for %q: %v", transport, err)
+		}
+	}
+	if h.opener.seen.Load() != 1 || h.opener.conn(0).closeCount() != 0 || h.status(t).ConnectionID != active.ConnectionID {
+		t.Fatal("rejected plain request affected the existing tunnel")
+	}
+}
+
 func TestOpenWithoutAnAccountAsksForRegistration(t *testing.T) {
 	h := newHarness(t, time.Minute)
 	h.accounts.has = false
@@ -554,7 +591,8 @@ func TestRegisterFailureIsReported(t *testing.T) {
 	h.accounts.has = false
 	h.accounts.regErr = errors.New("network is down")
 	_, err := h.call(t, context.Background(), "register", nil)
-	if err == nil || !strings.Contains(err.Error(), "network is down") {
+	var ce *ipc.ConnError
+	if !errors.As(err, &ce) || ce.Code != "account_request" || strings.Contains(err.Error(), "network is down") {
 		t.Fatalf("got %v", err)
 	}
 	// And the daemon is still serving: registration failure must never kill it.

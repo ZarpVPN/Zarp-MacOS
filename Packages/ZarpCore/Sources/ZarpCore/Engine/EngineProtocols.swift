@@ -10,6 +10,7 @@
 /// actually is on this platform is entirely the implementation's business — this package only
 /// needs to know how long it took to come up and how to close it.
 public protocol WarpConnectionHandle: Sendable {
+    var mode: ConnectionMode { get }
     /// The backend's identifier for this connection. Lets the engine tell "the connection I'm
     /// holding" apart from "the connection the backend reports right now" (they differ when the
     /// backend replaced it, or restarted).
@@ -25,6 +26,7 @@ public protocol WarpConnectionHandle: Sendable {
 }
 
 public extension WarpConnectionHandle {
+    var mode: ConnectionMode { .warp }
     var warnings: [String] { [] }
 }
 
@@ -35,10 +37,12 @@ public struct TunnelRouting: Sendable, Equatable {
     public var routeAll: Bool
     /// Also resolve names through Cloudflare's resolvers while connected. Requires `routeAll`.
     public var overrideDNS: Bool
+    public var serverPolicy: ServerRoutingPolicy?
 
-    public init(routeAll: Bool, overrideDNS: Bool) {
+    public init(routeAll: Bool, overrideDNS: Bool, serverPolicy: ServerRoutingPolicy? = nil) {
         self.routeAll = routeAll
         self.overrideDNS = overrideDNS && routeAll
+        self.serverPolicy = serverPolicy
     }
 
     /// What a throwaway scan attempt uses.
@@ -55,11 +59,15 @@ public struct LiveConnectionStatus: Sendable {
     public let strategyId: String?
     /// Whether the tunnel carries all of the machine's traffic or only the test route.
     public let routeAll: Bool
+    public let sourceID: String?
+    public let serverID: String?
 
-    public init(handle: WarpConnectionHandle, strategyId: String?, routeAll: Bool = true) {
+    public init(handle: WarpConnectionHandle, strategyId: String?, routeAll: Bool = true, sourceID: String? = nil, serverID: String? = nil) {
         self.handle = handle
         self.strategyId = strategyId
         self.routeAll = routeAll
+        self.sourceID = sourceID
+        self.serverID = serverID
     }
 }
 
@@ -122,19 +130,35 @@ public protocol WarpConnectionProvider: Sendable {
     func registerAccount() async throws
 }
 
-/// Error from `WarpConnectionProvider.open`. `timedOut` drives the same `err.timeout` vs. generic
-/// failure distinction Windows' scan loop makes.
+/// Optional, non-secret diagnostic context supplied by the daemon.
+public struct ConnectionFailureContext: Codable, Sendable, Equatable {
+    public let endpoint: String?
+    public let transport: String?
+    public let phase: String?
+    public let strategyId: String?
+    public let connectionId: String?
+
+    public init(endpoint: String? = nil, transport: String? = nil, phase: String? = nil,
+                strategyId: String? = nil, connectionId: String? = nil) {
+        self.endpoint = endpoint; self.transport = transport; self.phase = phase
+        self.strategyId = strategyId; self.connectionId = connectionId
+    }
+}
+
+/// A backend failure. `timedOut` distinguishes connection timeouts from other errors.
 public struct WarpConnectionError: Error, Sendable {
     public let message: String
     public let timedOut: Bool
     /// A machine-readable reason from the backend (`"no_account"`, `"foreign_vpn"`,
     /// `"cancelled"`, ...), when it gave one.
     public let code: String?
+    public let connection: ConnectionFailureContext?
 
-    public init(_ message: String, timedOut: Bool = false, code: String? = nil) {
+    public init(_ message: String, timedOut: Bool = false, code: String? = nil, connection: ConnectionFailureContext? = nil) {
         self.message = message
         self.timedOut = timedOut
         self.code = code
+        self.connection = connection
     }
 
     /// The call was abandoned because the caller cancelled it (or went away), not because it failed.
@@ -164,7 +188,16 @@ public protocol WarpProbe: Sendable {
 /// doesn't silently measure someone else's tunnel (Windows `NetCheck.ForeignVpnAdapters`). The
 /// app's implementation lives in the App target (it needs `getifaddrs`); the engine only asks.
 public protocol NetworkInspector: Sendable {
+    /// Opaque access-network identity. Nil means unavailable or unsupported.
+    /// Implementations observe physical network state without changing it.
+    func connectionPathIdentity() -> String?
     func foreignVPNInterfaceNames() -> [String]
+    func foreignVPNInterfaceNames(destinations: [String]) -> [String]
+}
+
+extension NetworkInspector {
+    public func connectionPathIdentity() -> String? { nil }
+    public func foreignVPNInterfaceNames(destinations: [String]) -> [String] { foreignVPNInterfaceNames() }
 }
 
 // MARK: - Honest placeholders — never a real implementation

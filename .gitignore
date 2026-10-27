@@ -21,7 +21,11 @@ zarpd/zarpctl
 zarpd/bin/
 
 # Local-only: upstream checkouts used as reading material, editor and tool state
+# Windows (ZarpVPN/Zarp), Android (ZarpVPN/Zarp-Android), and macOS comparison checkouts.
 _reference/
 .claude/
 .vscode/
 .idea/
+
+# Python helper caches
+__pycache__/

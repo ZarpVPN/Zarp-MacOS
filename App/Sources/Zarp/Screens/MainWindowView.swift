@@ -11,13 +11,16 @@ import ZarpCore
 /// isn't running, rather than silently no-opping.
 struct MainWindowView: View {
     @ObservedObject var vm: AppViewModel
-    @State private var showingSettings = false
+    @Environment(\.openWindow) private var openWindow
     @State private var showingLanguageMenu = false
     @State private var isLogExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            if vm.isReady && (vm.sources.count > 1 || !vm.sources.contains(where: { $0.id == vm.sourceID })) {
+                sourcePicker
+            }
 
             PowerButton(look: powerLook, action: vm.connectButtonTapped)
                 .padding(.top, 28)
@@ -44,18 +47,18 @@ struct MainWindowView: View {
                     .padding(.top, 10)
             }
 
-            Text(hintText)
-                .font(Theme.font(11))
-                .foregroundColor(Theme.textDim)
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 24)
-                .padding(.top, 14)
+            if !vm.preparingConnection {
+                Text(hintText)
+                    .font(Theme.font(11))
+                    .foregroundColor(Theme.textDim)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 14)
+            }
 
-            Spacer(minLength: 12)
-
-            logToggle
+            logToggle.padding(.top, 12)
 
             if isLogExpanded {
                 LogView(lines: vm.logLines)
@@ -65,17 +68,14 @@ struct MainWindowView: View {
         }
         .padding(.bottom, 12)
         .frame(width: 380)
+        .fixedSize(horizontal: false, vertical: true)
         .background(Theme.back)
         .task { await vm.start() }
-        // The menu bar item's "Settings" entry only sets this flag: the Settings screen is this
-        // window's sheet.
+        // Menu bar and keyboard requests open a separate single-instance window.
         .onChange(of: vm.settingsRequested) { _, requested in
             guard requested else { return }
-            showingSettings = true
+            openSettings()
             vm.settingsRequested = false
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(vm: vm)
         }
         .sheet(isPresented: $vm.showingCloseConfirmation) {
             CloseConfirmationView(
@@ -89,6 +89,9 @@ struct MainWindowView: View {
             )
         }
         .animation(.easeInOut(duration: 0.15), value: isLogExpanded)
+        #if ZARP_APPEARANCE_PREVIEW
+        .overlay(AppearanceDriver(vm: vm, isLogExpanded: $isLogExpanded))
+        #endif
     }
 
     private var header: some View {
@@ -97,7 +100,7 @@ struct MainWindowView: View {
                 Text("Zarp")
                     .font(Theme.font(22, weight: .bold))
                     .foregroundColor(Theme.text)
-                Text(vm.localization.string("main.subtitle"))
+                Text(vm.localization.string(vm.connectionMode == .server ? "sources.subtitle" : "main.subtitle"))
                     .font(Theme.font(11))
                     .foregroundColor(Theme.textDim)
             }
@@ -108,7 +111,7 @@ struct MainWindowView: View {
                 }
                 .popover(isPresented: $showingLanguageMenu) { languageMenu }
                 iconButton(systemName: "gearshape", help: vm.localization.string("main.settingsTip")) {
-                    showingSettings = true
+                    openSettings()
                 }
             }
         }
@@ -116,12 +119,42 @@ struct MainWindowView: View {
         .padding(.horizontal, 22)
     }
 
+    private func openSettings() {
+        openWindow(id: "settings")
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private var sourcePicker: some View {
+        HStack {
+            Text(vm.localization.string("sources.source"))
+            DarkMenu(title: vm.sources.first(where: { $0.id == vm.sourceID }).map(sourceName) ?? vm.localization.string("sources.unavailable"), width: 230) {
+                ForEach(vm.sources, id: \.id) { source in
+                    Button(sourceName(source)) { vm.selectSource(source.id) }
+                }
+                Divider()
+                Button(vm.localization.string("sources.title")) { openWindow(id: "servers") }
+            }
+            .disabled(vm.isBusy || vm.state == .connected)
+        }
+        .font(Theme.font(11.5))
+        .padding(.horizontal, 22)
+        .padding(.top, 10)
+    }
+
+    private func sourceName(_ source: ConnectionSource) -> String {
+        switch source.kind {
+        case .warp: return "WARP"
+        case .manual: return vm.localization.string("sources.manual")
+        case .subscription: return source.label.isEmpty ? vm.localization.string("sources.subscription", [String((vm.sources.firstIndex { $0.id == source.id } ?? 0) + 1)]) : source.label
+        }
+    }
+
     private func iconButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 20, weight: .medium))
                 .foregroundColor(Theme.text)
-                .frame(width: 34, height: 34)
+                .frame(width: 40, height: 40)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 1))
         }
@@ -214,7 +247,9 @@ struct MainWindowView: View {
     private var hintText: String {
         if vm.isBusy { return vm.localization.string("hint.cancel") }
         if vm.state == .connected { return vm.localization.string("hint.disconnect") }
-        if vm.selectedStrategyId == nil { return vm.localization.string("hint.firstRun") }
+        if vm.selectedStrategyId == nil {
+            return vm.localization.string(vm.connectionMode == .server ? "sources.hintFirstRun" : "hint.firstRun")
+        }
         return vm.localization.string("hint.connect")
     }
 }

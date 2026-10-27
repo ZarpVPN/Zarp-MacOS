@@ -1,7 +1,7 @@
 # Zarp: हिन्दी। कुंजियाँ en.txt जैसी ही हैं।
 
 # ---- मुख्य विंडो
-main.subtitle = उन नेटवर्क के लिए Cloudflare WARP जहाँ वह ब्लॉक है
+main.subtitle = zapret2 के साथ Cloudflare WARP
 main.settingsTip = सेटिंग्स और रणनीति
 main.languageTip = भाषा
 main.logShow = लॉग ▾
@@ -42,7 +42,7 @@ close.exit = ऐप बंद करें
 
 # ---- सेटिंग्स
 settings.strategy = रणनीति
-settings.explain = डबल-क्लिक या "उपयोग करें" से रणनीति चालू होती है। ✔ मौजूदा, ✔✔ दो स्वतंत्र जाँचों में सफल।
+settings.explain = उपयोग करें से रणनीति बदलती है। ✔ वर्तमान, ✔✔ दो नए सफल कनेक्शन। एंडपॉइंट की स्वतंत्रता टूलटिप में देखें।
 settings.options = विकल्प
 settings.directTip = zapret के बिना WARP
 col.strategy = रणनीति
@@ -55,7 +55,7 @@ btn.testSelected = चुनी हुई जाँचें
 btn.quickScan = तेज़ खोज
 btn.fullScan = पूरी खोज
 btn.cancel = रद्द करें
-tip.quickScan = {0} काम करने वाली रणनीतियाँ मिलते ही रुक जाती है (विकल्पों में बदलें)
+tip.quickScan = {0} पुष्टि की गई रणनीतियों के बाद रुकता है (विकल्पों में सेट करें)
 tip.fullScan = सभी {0} रणनीतियाँ जाँचती है। ज़्यादा समय लगता है, पर कोई नहीं छूटती
 btn.custom = अपनी रणनीतियाँ...
 btn.dataFolder = डेटा फ़ोल्डर
@@ -68,7 +68,7 @@ opt.closeTray = मेनू बार में छिपाएँ
 opt.closeExit = ऐप बंद करें
 opt.closeAccessible = विंडो बंद करने पर कार्रवाई
 opt.disconnectOnExit = बाहर निकलने पर WARP डिस्कनेक्ट करें
-opt.isolate = जाँचें अलग रखें (हर बार नया एंडपॉइंट)
+opt.isolate = परीक्षणों के बीच डिफ़ॉल्ट एंडपॉइंट बदलें
 opt.timeout = कनेक्शन का इंतज़ार, सेकंड
 opt.stopAfter = तेज़ खोज: कितनी काम\nकरने वाली खोजें
 
@@ -78,7 +78,6 @@ result.works1 = काम करती है (1 जाँच)
 result.notConfirmed = पुष्टि नहीं हुई: {0}
 result.applyFailed = लागू करने पर कनेक्ट नहीं हुई
 
-strategy.direct = सीधा कनेक्शन (बिना desync)
 
 # ---- बटन के नीचे स्थिति
 detail.disconnecting = डिस्कनेक्ट हो रहा है...
@@ -116,7 +115,7 @@ log.testFail = ✘ {0}: {1}
 log.recheck = दोबारा जाँच के लिए उम्मीदवार: {0}
 log.recheckOk = ✔✔ {0}: पुष्टि हुई (कनेक्शन {1} ms, पिंग {2} ms)
 log.candidatesFailed = उम्मीदवार दोबारा जाँच में सफल नहीं हुए, शायद वे संयोग से चल गए थे। फिर से खोजें या इंतज़ार का समय बढ़ाएँ।
-log.noneWorked = कोई रणनीति काम नहीं आई। सेटिंग्स में इंतज़ार का समय बढ़ाएँ या {0} में अपनी रणनीतियाँ जोड़ें
+log.noneWorked = कोई रणनीति ट्रैफ़िक जाँच में सफल नहीं हुई। कॉन्फ़िगर किया हुआ सर्वर चुनें या {0} में संगत रणनीतियाँ जोड़ें।
 log.best = सबसे अच्छी रणनीति: {0} (कनेक्शन {1} ms, पिंग {2} ms)
 log.tryNext = "{0}" कनेक्ट नहीं हुई, अगली आज़माई जा रही है।
 log.connectingWith = इस रणनीति से कनेक्ट हो रहा है: {0}
@@ -134,30 +133,11 @@ log.configBroken = सेटिंग्स खराब हैं, डिफ़
 log.configSaveFailed = सेटिंग्स सहेजी नहीं जा सकीं: {0}
 
 # ---- अनुपलब्ध रणनीतियाँ
-strategy.directH2 = HTTP/2 पर सीधा कनेक्शन (बिना desync)
 strategy.badSyntax = {0}
 strategy.unknownFeature = इसके लिए नकली पैकेट या साधारण TCP स्प्लिट से ज़्यादा कुछ चाहिए ({0}) — macOS पर अभी उपलब्ध नहीं
 strategy.badsum = इसके लिए raw सॉकेट से चेकसम बदलना ज़रूरी है — macOS पर अभी उपलब्ध नहीं
 
-# ---- zarpd सेवा
-daemon.title = zarpd सेवा
-daemon.notInstalled = इंस्टॉल नहीं है
-daemon.requiresApproval = इंस्टॉल है — सिस्टम सेटिंग्स में अनुमति चाहिए
-daemon.enabled = इंस्टॉल है
-daemon.notFound = नहीं मिली — Zarp दोबारा इंस्टॉल करके देखें
-daemon.unknown = अज्ञात स्थिति ({0})
-daemon.respondingYes = जवाब दे रही है (संस्करण {0}, pid {1})
-daemon.respondingNo = जवाब नहीं दे रही: {0}
-daemon.respondingUnknown = जाँच हो रही है...
-daemon.badLocation = Zarp डिस्क इमेज या अस्थायी डाउनलोड फ़ोल्डर से चल रहा है, और जैसे ही वह हटेगा बैकग्राउंड सेवा काम करना बंद कर देगी। Zarp को Applications फ़ोल्डर में खींचें, डिस्क इमेज को इजेक्ट करें, Applications से Zarp खोलें और फिर "इंस्टॉल करें" दबाएँ।
-daemon.install = इंस्टॉल करें
-daemon.restart = रीस्टार्ट करें
-daemon.uninstall = अनइंस्टॉल करें
-daemon.openSettings = सिस्टम सेटिंग्स खोलें…
 daemon.refresh = रीफ़्रेश करें
-daemon.badLocationApplications = Zarp अपनी बैकग्राउंड सेवा तभी इंस्टॉल कर सकता है जब वह Applications फ़ोल्डर में हो: यह सेवा एडमिनिस्ट्रेटर अधिकारों से चलती है और ऐसी जगह नहीं रहनी चाहिए जिसे आम प्रोग्राम बदल सकें। Zarp को Applications फ़ोल्डर में खींचें, वहीं से खोलें और फिर "इंस्टॉल करें" दबाएँ।
-daemon.stale = चल रही सेवा का संस्करण {0} है, जबकि यह ऐप {1} है। अपडेट करने के लिए "रीस्टार्ट करें" दबाएँ।
-daemon.restartingStale = zarpd सेवा का संस्करण {0} है और ऐप का {1}: अपडेट करने के लिए सेवा रीस्टार्ट की जा रही है।
 
 # ---- कनेक्शन टूटना, WARP अकाउंट
 detail.connectionLost = कनेक्शन टूट गया
@@ -169,7 +149,7 @@ log.reconnecting = दोबारा कनेक्ट हो रहा है
 log.reconnectGiveUp = अपने आप दोबारा कनेक्ट नहीं हो सका। फिर से कनेक्ट करने के लिए बटन दबाएँ।
 log.unsupportedStrategy = "{0}" macOS पर उपलब्ध नहीं है: {1}
 log.customSaveFailed = {0} सहेजा नहीं जा सका: {1}
-err.daemonGone = zarpd सेवा ने जवाब देना बंद कर दिया
+err.daemonGone = कनेक्शन बाधित हो गया।
 err.unknownLoss = टनल गायब हो गया (कोई कारण नहीं बताया गया)
 err.foreignVpn = कोई दूसरा VPN या प्रॉक्सी डिफ़ॉल्ट रूट इस्तेमाल कर रहा है। उसे बंद करें, फिर दोबारा कनेक्ट करें।
 err.noAccount = अभी तक कोई WARP अकाउंट रजिस्टर नहीं है।
@@ -191,3 +171,159 @@ opt.reconnect = कनेक्शन टूटने पर अपने आप
 btn.save = सहेजें
 custom.skipped = सहेजा गया। {0} पंक्ति(याँ) समझ नहीं आईं और छोड़ दी गईं (फ़ॉर्मेट: नाम | h3/h2/wg | आर्ग्युमेंट):
 custom.saveFailed = {0} सहेजा नहीं जा सका: {1}
+
+# Country selection and connection evidence
+strategy.countries = देश
+strategy.allCountries = सभी
+strategy.countryHint = देश टैग कैटलॉग के लिए मार्गदर्शन हैं, आपके प्रदाता पर प्रभावशीलता का प्रमाण नहीं।
+result.independent = अलग एंडपॉइंट पर पुष्टि हुई
+result.freshOnly = दो सफल कनेक्शन; एंडपॉइंट की स्वतंत्रता की पुष्टि नहीं हुई
+
+# Custom WARP endpoints
+settings.endpoints = WARP एंडपॉइंट
+settings.endpointHelp = हर पंक्ति में सार्वजनिक संख्यात्मक IPv4:पोर्ट या [IPv6]:पोर्ट। टिप्पणियाँ # से शुरू हों। अधिकतम 64 पते। खाली सूची डिफ़ॉल्ट पते उपयोग करती है। सूची बदलने से पुराने परिणाम मिटेंगे।
+settings.singleEndpoint = एक एंडपॉइंट: नए कनेक्शन एंडपॉइंट की स्वतंत्रता साबित नहीं करते।
+err.endpointList = पंक्ति {0} में अमान्य सूची। सार्वजनिक संख्यात्मक IP और पोर्ट 1-65535 उपयोग करें।
+btn.resetEndpoints = एंडपॉइंट रीसेट करें
+# Server library and explicit subscription downloads
+sources.title = सर्वर और सदस्यताएँ
+sources.done = पूर्ण
+sources.runtimePending = मुख्य विंडो में स्रोत चुनें, फिर कनेक्ट करें या संगत सर्वर और रणनीति की जोड़ियां खोजें।
+sources.empty = कोई सर्वर सहेजा नहीं गया है। नीचे लिंक आयात करें या सदस्यता जोड़ें।
+sources.source = स्रोत
+sources.refresh = अपडेट करें
+sources.delete = हटाएँ
+sources.server = सर्वर
+sources.address = पता
+sources.select = चयन सहेजें
+sources.automatic = स्वचालित
+sources.lastUpdate = अपडेट किया गया: {0}
+sources.missingSelection = सहेजा गया सर्वर इस सूची में नहीं है। कोई सर्वर या स्वचालित विकल्प चुनें।
+sources.importTitle = सर्वर लिंक आयात करें
+sources.importHelp = VLESS, Trojan या Hysteria2 लिंक चिपकाएँ, हर पंक्ति में एक। प्रमाण-पत्र निजी फ़ाइलों में सहेजे जाते हैं।
+sources.import = आयात करें
+sources.subscriptionTitle = सदस्यता जोड़ें या नाम बदलें
+sources.label = नाम (वैकल्पिक)
+sources.url = HTTPS सदस्यता URL
+sources.saveHelp = सहेजने से URL स्थानीय रूप से संग्रहीत होता है। अपडेट मौजूदा कनेक्शन से डाउनलोड करता है; विफल होने पर पिछली सफल सूची बनी रहती है।
+sources.refreshing = सदस्यता अपडेट हो रही है...
+sources.manual = आयात किए गए सर्वर
+sources.subscription = सदस्यता {0}
+sources.imported = {0} सर्वर आयात हुए; {1} प्रविष्टियाँ छोड़ी गईं।
+sources.saved = सदस्यता सहेज दी गई। सर्वर डाउनलोड करने के लिए अपडेट करें।
+sources.updated = {0} सर्वर अपडेट हुए; {1} प्रविष्टियाँ छोड़ी गईं।
+sources.deleted = हटा दिया गया।
+sources.selectionSaved = सर्वर का चयन सहेज दिया गया।
+sources.cancelled = अपडेट रद्द कर दिया गया।
+sources.deleteTitle = सदस्यता हटाएँ?
+sources.deleteHelp = यह सदस्यता और इसकी डाउनलोड की गई सर्वर सूची हटाएँ?
+sources.networkError = डाउनलोड विफल रहा। सहेजी गई सर्वर सूची अभी भी उपलब्ध है।
+sources.tlsError = सदस्यता के TLS प्रमाणपत्र की पुष्टि नहीं हो सकी।
+sources.timeoutError = सदस्यता अनुरोध का समय समाप्त हो गया।
+sources.sizeError = सदस्यता आकार सीमा से अधिक है।
+sources.busyError = यह सदस्यता पहले से अपडेट हो रही है।
+sources.formatError = कोई समर्थित सर्वर लिंक नहीं मिला। सहेजी गई सूची रखी गई है।
+sources.httpError = सदस्यता ने HTTP {0} लौटाया। सहेजी गई सूची रखी गई है।
+sources.invalid = अमान्य फ़ील्ड: {0}। दर्ज की गई सेटिंग जाँचें।
+sources.storageError = सर्वर का निजी डेटा पढ़ा या सहेजा नहीं जा सका। डेटा फ़ोल्डर की अनुमतियाँ जाँचें।
+
+# WARP+ account management (Windows Zarp MIT strings, macOS account lifecycle)
+warpPlus.title = WARP+
+warpPlus.hint = अपनी मौजूदा WARP+ सदस्यता का उपयोग करें। फ़ोन के 1.1.1.1 ऐप में सेटिंग > खाता से कुंजी कॉपी करें। हमेशा की तरह Zarp से कनेक्ट करें: चुनी गई zapret2 रणनीति WARP+ के लिए भी काम करती है।
+warpPlus.account = खाता: {0}
+warpPlus.key = WARP+ लाइसेंस कुंजी
+warpPlus.privacy = कुंजी आपके Zarp खाते के लिए Cloudflare को भेजी जाती है। Zarp इसे सहेजता या लॉग में नहीं लिखता।
+warpPlus.invalid = कुंजी में आठ अंग्रेज़ी अक्षरों या अंकों के तीन समूह होने चाहिए, जिनके बीच हाइफ़न हो।
+warpPlus.loading = WARP खाता पढ़ा जा रहा है...
+warpPlus.applying = WARP+ लाइसेंस लागू हो रहा है...
+warpPlus.applied = WARP+ इस डिवाइस से जुड़ गया है। अपडेट किए गए खाते का उपयोग करने के लिए Zarp से दोबारा कनेक्ट करें।
+warpPlus.unconfirmed = WARP ने कुंजी स्वीकार की, लेकिन WARP+ की पुष्टि नहीं हुई। दोबारा कनेक्ट करने से पहले खाता रीफ़्रेश करें और सदस्यता जाँचें।
+warpPlus.applyFailed = कुंजी लागू नहीं हुई। सदस्यता, डिवाइस सीमा और Cloudflare तक पहुँच जाँचें, फिर प्रयास करें।
+warpPlus.accountFailed = खाता नहीं पढ़ा जा सका। Cloudflare तक पहुँच जाँचें और फिर कोशिश करें।
+warpPlus.timeout = WARP ने समय पर जवाब नहीं दिया। कुंजी लागू हो सकती है; दोबारा प्रयास करने से पहले खाता रीफ़्रेश करें।
+warpPlus.busy = मौजूदा प्रक्रिया पूरी होने दें, फिर प्रयास करें।
+warpPlus.noWarp = अभी Zarp WARP खाता नहीं है। शर्तें स्वीकार करने और बिना टनल शुरू किए पंजीकरण के लिए कुंजी लागू करें।
+warpPlus.apply = कुंजी लागू करें
+warpPlus.refresh = खाता रीफ़्रेश करें
+warpPlus.unknown = अज्ञात या पंजीकृत नहीं
+warpPlus.free = WARP (मुफ़्त)
+warpPlus.plus = WARP+
+warpPlus.unlimited = WARP+ Unlimited
+warpPlus.zerotrust = Cloudflare Zero Trust
+warpPlus.updateDaemon = WARP+ फ़िलहाल उपलब्ध नहीं है। बाद में फिर कोशिश करें।
+sources.cached = अपडेट विफल रहा। पिछली सहेजी गई सर्वर सूची का उपयोग किया जा रहा है।
+sources.unavailable = चुने गए स्रोत या सर्वर के लिए कोई संगत जोड़ी उपलब्ध नहीं है।
+sources.refreshFailed = चुनी गई सदस्यता अपडेट नहीं हो सकी।
+sources.subtitle = सर्वर टनल + zapret
+sources.hintFirstRun = काम करने वाला सर्वर और रणनीति खोजने के लिए दबाएँ, फिर zapret के ज़रिए सर्वर टनल से जुड़ें
+settings.title = Zarp सेटिंग्स
+settings.connection = सर्वर और एंडपॉइंट
+settings.close = बंद करें
+strategy.countrySelection = देश: {0}
+strategy.countryRU = रूस
+strategy.countryIR = ईरान
+strategy.countryCN = चीन
+
+# Server connection and application routing
+connection.useServer = WARP के बजाय अपना सर्वर इस्तेमाल करें
+connection.serverHelp = VLESS, Trojan या Hysteria2 लिंक प्रति पंक्ति एक, या एक HTTPS सदस्यता URL चिपकाएँ। Zarp उपयुक्त सर्वर और zapret2 रणनीति की जोड़ी खोजता है।
+connection.savedSource = सहेजी गई सूची
+connection.newServer = नया सर्वर या सदस्यता
+connection.serverInput = सर्वर लिंक या सदस्यता URL
+connection.savedServers = सहेजे गए सर्वर: {0}। यह सूची रखने के लिए फ़ील्ड खाली छोड़ें।
+connection.ipv6 = सर्वर से IPv6
+connection.dns = DNS सर्वर
+connection.serverSaveHelp = सहेजने पर सदस्यता अपडेट होती है या आयात की गई सर्वर सूची बदल जाती है।
+connection.saving = सर्वर सहेजे और लोड किए जा रहे हैं...
+connection.nextConnection = बदलाव अगले कनेक्शन पर लागू होंगे।
+connection.noServer = सर्वर लिंक या सदस्यता URL दर्ज करें, या सहेजी सूची चुनें।
+routing.invalid = ऐप रूटिंग, IPv6 या DNS सेटिंग अमान्य है। चुने ऐप और DNS का IP पता जाँचें।
+routing.fullTunnelRequired = ऐप रूटिंग के लिए पूरा ट्रैफ़िक कैप्चर चालू करें।
+apps.title = ऐप रूटिंग
+apps.enable = चुनिंदा ऐप की रूटिंग
+apps.help = ऐप बंडल या निष्पादन फ़ाइल चुनें। चुने .app में उसके अंदर के सहायक शामिल हैं; बाहरी सहायक अलग जोड़ें। सहेजने पर ट्रैफ़िक वर्गीकरण के लिए कैप्चर चालू होता है। केवल चुने ऐप मोड में बाकी सीधे जुड़ते हैं।
+apps.serverOnly = ये नियम अपने सर्वर के लिए हैं। WARP मोड में ऐप नियम लागू नहीं होते।
+apps.search = नाम या पथ खोजें
+apps.application = ऐप
+apps.path = पथ
+apps.selected = चुने ऐप: {0}
+apps.dnsHelp = DNS ओवरराइड चालू होने पर साझा सिस्टम DNS सर्वर से जाता है। ऐप फ़िल्टर में अज्ञात प्रक्रिया के प्रवाह रोके जाते हैं।
+apps.add = ऐप जोड़ें...
+apps.modeAll = सभी ऐप
+apps.modeInclude = केवल चुने ऐप
+apps.modeExclude = चुने ऐप के अलावा सभी
+apps.choose = कम से कम एक ऐप चुनें।
+opt.routeAllServer = कनेक्शन को Mac ट्रैफ़िक पर लागू करें
+opt.overrideDNSServer = कॉन्फ़िगर किए सर्वर DNS का उपयोग करें
+
+# Account setup and protected API recovery
+err.accountUncertain = Cloudflare ने खाता बना दिया हो सकता है, लेकिन जवाब खो गया। दोहरे खाते रोकने के लिए अपने आप पंजीकरण रुका है। मौजूदा खाता फ़ाइलें सुरक्षित रखें।
+err.accountUnavailable = मौजूदा खाता डेटा सुरक्षित रूप से नहीं पढ़ा जा सका। डेटा फ़ोल्डर की अनुमतियाँ जाँचें। Zarp खाता नहीं बदलेगा।
+err.accountRateLimited = Cloudflare ने पंजीकरण अनुरोध सीमित किए हैं। दोबारा कोशिश करने से पहले प्रतीक्षा करें। अधूरा पंजीकरण सुरक्षित है।
+err.accountCertificate = Cloudflare API का प्रमाणपत्र सत्यापित नहीं हुआ। पंजीकरण रोक दिया गया।
+err.accountNetwork = उपलब्ध TLS रणनीतियों से Cloudflare खाता API तक नहीं पहुँचा जा सका। अधूरा पंजीकरण सुरक्षित है।
+err.accountRejected = Cloudflare खाता API ने अनुरोध अस्वीकार किया या अमान्य जवाब दिया। खाता जाँचें और स्थिति ताज़ा करें।
+err.licenseUncertain = लाइसेंस अनुरोध Cloudflare तक पहुँच गया हो सकता है। कुंजी फिर भेजने से पहले खाता ताज़ा करें।
+detail.registering = API सुरक्षा के साथ WARP पंजीकरण...
+
+
+connection.preparing = कनेक्शन तैयार हो रहा है...
+connection.permissionRequired = जारी रखने के लिए macOS सेटिंग में Zarp को अनुमति दें।
+connection.prepareFailed = कनेक्शन तैयार नहीं हो सका। फिर से कनेक्ट करने की कोशिश करें।
+connection.moveToApplications = Zarp को Applications में ले जाएँ, फिर दोबारा खोलें।
+
+log.appStarted = Zarp {0} शुरू हुआ।
+log.connectionReplacing = कनेक्शन घटक अपडेट हो रहा है...
+log.connectionRegistering = कनेक्शन घटक पंजीकृत हो रहा है...
+log.connectionWaiting = कनेक्शन घटक शुरू होने की प्रतीक्षा है...
+log.connectionReady = कनेक्शन की तैयारी पूरी हुई।
+log.connectionPreparationFailed = कनेक्शन तैयार करने में विफल: {0}
+
+detail.verifying = कनेक्शन की स्थिरता जाँची जा रही है...
+log.recoveryAlternatives = कनेक्शन अस्थिर है। दूसरी रणनीतियाँ जाँची जा रही हैं।
+log.recoveryCandidate = दूसरी रणनीति जाँची जा रही है: {0}
+log.networkChanged = नेटवर्क बदल गया है। पिछले नेटवर्क के परिणाम फिर से जाँचने होंगे।
+detail.networkChanged = जाँच के दौरान नेटवर्क बदल गया। फिर से कनेक्ट करें।
+result.unstable = जाँच के तुरंत बाद कनेक्शन टूट गया
+err.peerKeyMismatch = सर्वर {0} की कुंजी विश्वसनीय WARP कुंजी से मेल नहीं खाती।
+strategy.required = बाहरी zapret रणनीति आवश्यक है। सीधे WARP कनेक्शन बंद हैं।

@@ -16,6 +16,7 @@ struct LogView: View {
                             .font(Theme.monospaced(10.5))
                             .foregroundColor(Theme.textDim)
                             .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
                             .id(entry.id)
                     }
                 }
@@ -23,11 +24,15 @@ struct LogView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(Theme.panel)
-            .onChange(of: lines.count) { _, _ in
+            .onAppear {
+                if let last = lines.last?.id { proxy.scrollTo(last, anchor: .bottom) }
+            }
+            .onChange(of: lines.last?.id) { _, _ in
                 if let last = lines.last?.id {
                     withAnimation(.none) { proxy.scrollTo(last, anchor: .bottom) }
                 }
             }
         }
+        .environment(\.layoutDirection, .leftToRight)
     }
 }

@@ -7,7 +7,7 @@ import ZarpCore
 ///
 /// The titlebar red-button close, the menu bar Quit item, and ⌘Q all funnel into the same
 /// `AppViewModel.requestClose` path: SwiftUI's `Window` scene has no direct hook for
-/// `windowShouldClose(_:)`, so `WindowCloseInterceptor` below attaches a plain `NSWindowDelegate`
+/// `windowShouldClose(_:)`, so `WindowCloseInterceptor` attaches a plain `NSWindowDelegate`
 /// to the underlying `NSWindow` once it exists, and always answers `false` — `requestClose` decides
 /// asynchronously (it may show `CloseConfirmationView` as a sheet first) and itself calls
 /// `NSApp.hide`/`NSApp.terminate` when it has an answer, exactly as the other two paths already do.
@@ -26,11 +26,7 @@ struct ZarpApp: App {
     @StateObject private var vm = AppServices.viewModel
 
     var body: some Scene {
-        Window("Zarp", id: "main") {
-            MainWindowView(vm: vm)
-                .background(WindowCloseInterceptor(onShouldClose: requestClose))
-        }
-        .windowResizability(.contentSize)
+        ZarpWindows(vm: vm, onMainClose: requestClose)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button(vm.localization.string("tray.quit")) { requestClose() }
@@ -41,10 +37,10 @@ struct ZarpApp: App {
         MenuBarExtra("Zarp", systemImage: menuBarIcon) {
             Button(vm.localization.string("tray.open")) { NSApp.activate(ignoringOtherApps: true) }
             Button(menuToggleTitle) { vm.connectButtonTapped() }
+                .disabled(!vm.isReady || vm.preparingConnection)
             Divider()
             Button(vm.localization.string("tray.settings")) {
-                // The Settings screen is a sheet of the main window: raise the window, and ask it to
-                // present the sheet.
+                // The main scene routes this request to the single settings window.
                 NSApp.activate(ignoringOtherApps: true)
                 vm.settingsRequested = true
             }
@@ -144,42 +140,5 @@ final class ZarpAppDelegate: NSObject, NSApplicationDelegate {
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
-    }
-}
-
-/// Invisible helper view: on insertion, finds its enclosing `NSWindow` and makes itself that
-/// window's delegate purely to intercept `windowShouldClose(_:)`. The window has no other delegate
-/// of its own to preserve (plain SwiftUI `Window` scenes don't set one), so this doesn't need to
-/// forward other delegate methods anywhere.
-private struct WindowCloseInterceptor: NSViewRepresentable {
-    let onShouldClose: () -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async { context.coordinator.attach(via: view, onShouldClose: onShouldClose) }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.attach(via: nsView, onShouldClose: onShouldClose)
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator: NSObject, NSWindowDelegate {
-        private weak var window: NSWindow?
-        private var onShouldClose: (() -> Void)?
-
-        func attach(via view: NSView, onShouldClose: @escaping () -> Void) {
-            self.onShouldClose = onShouldClose
-            guard let window = view.window, window !== self.window else { return }
-            self.window = window
-            window.delegate = self
-        }
-
-        func windowShouldClose(_ sender: NSWindow) -> Bool {
-            onShouldClose?()
-            return false
-        }
     }
 }

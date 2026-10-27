@@ -25,6 +25,7 @@ public final class Localization: @unchecked Sendable {
         Language(code: "hi", nativeName: "हिन्दी"),
         Language(code: "fr", nativeName: "Français"),
         Language(code: "de", nativeName: "Deutsch"),
+        Language(code: "fa", nativeName: "فارسی"),
     ]
 
     public static let fallbackCode = "en"
@@ -42,6 +43,8 @@ public final class Localization: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         return _currentCode
     }
+
+    public var isRightToLeft: Bool { currentCode == "fa" }
 
     /// Called after `setLanguage` actually changes the language, mirroring Windows `L.Changed`.
     /// Fires on whatever thread called `setLanguage`; callers hop to the main thread themselves.

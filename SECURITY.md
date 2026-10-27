@@ -13,7 +13,7 @@ Only the latest release receives security fixes. The project is young (0.x); the
 **Please do not open a public issue or pull request for a security problem.**
 
 Report it privately through GitHub: on the repository page open **Security > Report a vulnerability**
-(<https://github.com/feg55/Zarp-MacOS/security/advisories/new>). That creates a private conversation with the
+(<https://github.com/ZarpVPN/Zarp-MacOS/security/advisories/new>). That creates a private conversation with the
 maintainer. If that option is not available to you, open a public issue that says only "I have a security
 report" and no details, and a private channel will be arranged.
 

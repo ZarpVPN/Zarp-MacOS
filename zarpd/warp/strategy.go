@@ -27,9 +27,10 @@ const (
 // Go module from the Swift ZarpCore package; the IPC layer, docs/ARCHITECTURE.md §5, is what
 // translates one into the other).
 type FakeStep struct {
-	Blob    []byte
-	Repeats int
-	TTL     int // 0 means "don't change it"
+	Blob     []byte
+	Repeats  int
+	HopLimit int // IPv6 only; 0 means unchanged
+	TTL      int // 0 means "don't change it"
 }
 
 // ValidateFakeSteps rejects step lists SendFakes must never be asked to run.
@@ -41,7 +42,7 @@ func ValidateFakeSteps(steps []FakeStep) error {
 		if s.Repeats < 1 || s.Repeats > MaxFakeRepeats {
 			return fmt.Errorf("fake step %d: repeats %d out of range 1-%d", i+1, s.Repeats, MaxFakeRepeats)
 		}
-		if s.TTL < 0 || s.TTL > MaxFakeTTL {
+		if s.TTL < 0 || s.TTL > MaxFakeTTL || s.HopLimit < 0 || s.HopLimit > MaxFakeTTL {
 			return fmt.Errorf("fake step %d: ttl %d out of range 0-%d", i+1, s.TTL, MaxFakeTTL)
 		}
 		if len(s.Blob) == 0 {
@@ -72,12 +73,16 @@ func SendFakes(conn *net.UDPConn, endpoint *net.UDPAddr, steps []FakeStep, onSen
 	for si, step := range steps {
 		var normal int
 		lowered := false
-		if step.TTL > 0 {
+		ttl := step.TTL
+		if v6 && endpoint.IP.To4() == nil {
+			ttl = step.HopLimit
+		}
+		if ttl > 0 {
 			normal, err = getTTL(conn, v6)
 			if err != nil {
 				return packets, bytes, err
 			}
-			if err = setTTL(conn, v6, step.TTL); err != nil {
+			if err = setTTL(conn, v6, ttl); err != nil {
 				return packets, bytes, err
 			}
 			lowered = true

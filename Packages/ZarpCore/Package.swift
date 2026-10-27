@@ -2,8 +2,9 @@
 import PackageDescription
 
 // Platform-independent part of Zarp for macOS: strategy model and catalog, scan/scoring/self-heal
-// state machine, settings, localization and logging. Foundation only, so `swift test` also runs on
-// Linux. Deliberately excludes anything that touches live network traffic — see
+// state machine, settings, localization and logging. Foundation and system CryptoKit hashing.
+// Package tests target macOS, including the Darwin-only IPC test target.
+// Deliberately excludes anything that touches live network traffic. See
 // `Sources/ZarpCore/Engine/EngineProtocols.swift` for the boundary.
 //
 // `ZarpdIPC` is the one piece that does talk to something: the client for the `zarpd` daemon's Unix
@@ -16,11 +17,14 @@ let package = Package(
     products: [
         .library(name: "ZarpCore", targets: ["ZarpCore"]),
         .library(name: "ZarpdIPC", targets: ["ZarpdIPC"]),
+        .library(name: "ZarpSubscriptions", targets: ["ZarpSubscriptions"]),
     ],
     targets: [
         .target(name: "ZarpCore"),
         .target(name: "ZarpdIPC", dependencies: ["ZarpCore"]),
+        .target(name: "ZarpSubscriptions", dependencies: ["ZarpCore"]),
         .testTarget(name: "ZarpCoreTests", dependencies: ["ZarpCore"]),
         .testTarget(name: "ZarpdIPCTests", dependencies: ["ZarpdIPC", "ZarpCore"]),
+        .testTarget(name: "ZarpSubscriptionsTests", dependencies: ["ZarpSubscriptions", "ZarpCore"], exclude: ["Fixtures"]),
     ]
 )

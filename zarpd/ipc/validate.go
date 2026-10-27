@@ -87,10 +87,25 @@ func ParseEndpoint(s string) (ip netip.Addr, port int, err error) {
 		return netip.Addr{}, 0, fmt.Errorf("%q is not an IP address or ip:port", s)
 	}
 	ip = ip.Unmap()
-	if !ip.Is4() {
-		return netip.Addr{}, 0, fmt.Errorf("endpoint %s: only IPv4 endpoints are supported", ip)
+	if ip.Zone() != "" {
+		return netip.Addr{}, 0, fmt.Errorf("endpoint zones are not supported")
 	}
 	return ip, port, nil
+}
+
+// Custom WARP endpoints remain pinned MASQUE connections, never general-purpose relay sockets.
+func publicEndpoint(ip netip.Addr) bool {
+	if ip.Zone() != "" || ip.Is4In6() || !ip.IsGlobalUnicast() || ip.IsPrivate() {
+		return false
+	}
+	if ip.Is6() {
+		return netip.MustParsePrefix("2000::/3").Contains(ip)
+	}
+	if ip.Is4() {
+		b := ip.As4()
+		return b[0] != 0 && !netip.MustParsePrefix("100.64.0.0/10").Contains(ip)
+	}
+	return false
 }
 
 func badRequest(format string, args ...any) error {
@@ -108,9 +123,16 @@ func (p *OpenParams) Validate() error {
 		return badRequest("unknown transport %q", p.Transport)
 	}
 	h2 := p.Transport == "masqueH2"
+	if p.WarpTLSName != "" && (p.Mode == "server" || (p.WarpTLSName != "vk.com" && p.WarpTLSName != "www.google.com")) {
+		return badRequest("unsupported WARP TLS strategy name")
+	}
 
-	if len(p.StrategyID) > MaxStrategyID {
-		return badRequest("strategyId is longer than %d bytes", MaxStrategyID)
+	maxID := MaxStrategyID
+	if p.Mode == "server" {
+		maxID = 256
+	}
+	if len(p.StrategyID) > maxID {
+		return badRequest("strategyId is longer than %d bytes", maxID)
 	}
 	for _, r := range p.StrategyID {
 		if r < 0x20 || r == 0x7f {
@@ -162,8 +184,10 @@ func (p *OpenParams) Validate() error {
 		}
 	}
 
-	if err := p.validateEndpoint(h2); err != nil {
-		return err
+	if p.Mode != "server" {
+		if err := p.validateEndpoint(h2); err != nil {
+			return err
+		}
 	}
 
 	if p.RouteAll && !p.Persistent {
@@ -172,10 +196,26 @@ func (p *OpenParams) Validate() error {
 	if p.OverrideDNS && !p.RouteAll {
 		return badRequest("overrideDNS requires routeAll")
 	}
+	if p.RoutingPolicy != nil && (p.Mode != "server" || !p.Persistent || !p.RouteAll || p.RoutingPolicy.Validate() != nil) {
+		return badRequest("invalid server routing policy")
+	}
+	if p.Mode != "server" && len(p.FakeSteps) == 0 && p.TCPDesync == nil {
+		return &ConnError{Code: CodeStrategyRequired, Message: "WARP requires an outer strategy"}
+	}
 	return nil
 }
 
 func (p *OpenParams) validateEndpoint(h2 bool) error {
+	if p.EndpointPolicy != "" && p.EndpointPolicy != "customWarp" {
+		return badRequest("unknown endpointPolicy")
+	}
+	if p.EndpointPolicy == "customWarp" {
+		ap, err := netip.ParseAddrPort(p.Endpoint)
+		if err != nil || ap.Port() == 0 || !publicEndpoint(ap.Addr()) {
+			return badRequest("custom WARP endpoint requires a public numeric IP and port 1-65535")
+		}
+		return nil
+	}
 	if p.Endpoint == "" {
 		return nil
 	}

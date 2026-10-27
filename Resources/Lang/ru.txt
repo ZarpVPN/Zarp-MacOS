@@ -1,7 +1,7 @@
 # Zarp: русский. Ключи совпадают с en.txt.
 
 # ---- главное окно
-main.subtitle = Cloudflare WARP для сетей, где он заблокирован
+main.subtitle = Cloudflare WARP поверх zapret2
 main.settingsTip = Настройки и выбор стратегии
 main.languageTip = Язык
 main.logShow = Журнал ▾
@@ -42,7 +42,7 @@ close.exit = Закрыть приложение
 
 # ---- настройки
 settings.strategy = Стратегия
-settings.explain = Двойной клик или «Использовать» включает стратегию. ✔ текущая, ✔✔ прошла две независимые проверки.
+settings.explain = Кнопка «Использовать» переключает стратегию. ✔ текущая, ✔✔ два успешных новых подключения. Независимость адресов указана в подсказке.
 settings.options = Параметры
 settings.directTip = WARP без zapret
 col.strategy = Стратегия
@@ -55,7 +55,7 @@ btn.testSelected = Проверить выбранные
 btn.quickScan = Быстрый поиск
 btn.fullScan = Полный поиск
 btn.cancel = Отмена
-tip.quickScan = Останавливается, когда найдено рабочих: {0} (задаётся в параметрах)
+tip.quickScan = Останавливается после {0} подтверждённых стратегий (в параметрах)
 tip.fullScan = Проверяет все стратегии ({0}). Дольше, зато ничего не пропускает
 btn.custom = Свои стратегии...
 btn.dataFolder = Папка данных
@@ -68,7 +68,7 @@ opt.closeTray = Скрывать в трей
 opt.closeExit = Закрывать приложение
 opt.closeAccessible = Действие при закрытии окна
 opt.disconnectOnExit = Отключать WARP при выходе
-opt.isolate = Изолировать тесты (новый эндпоинт на каждый)
+opt.isolate = Чередовать стандартные адреса при тестах
 opt.timeout = Ожидание подключения, с
 opt.stopAfter = Быстрый поиск: сколько\nрабочих найти
 
@@ -78,7 +78,6 @@ result.works1 = работает (1 проверка)
 result.notConfirmed = не подтвердилась: {0}
 result.applyFailed = не подключилась при применении
 
-strategy.direct = Без zapret (прямое подключение)
 
 # ---- строка состояния под кнопкой
 detail.disconnecting = Отключаю...
@@ -116,7 +115,7 @@ log.testFail = ✘ {0}: {1}
 log.recheck = Кандидатов на перепроверку: {0}
 log.recheckOk = ✔✔ {0}: подтверждена (подключение {1} мс, пинг {2} мс)
 log.candidatesFailed = Кандидаты не прошли перепроверку: вероятно, они сработали случайно. Попробуйте поиск ещё раз или увеличьте таймаут.
-log.noneWorked = Ни одна стратегия не сработала. Увеличьте таймаут в настройках или добавьте свои стратегии в {0}
+log.noneWorked = Ни одна стратегия не прошла проверку трафика. Выберите настроенный сервер или добавьте совместимые стратегии в {0}.
 log.best = Лучшая стратегия: {0} (подключение {1} мс, пинг {2} мс)
 log.tryNext = «{0}» не подключилась, пробую следующую.
 log.connectingWith = Подключаюсь со стратегией: {0}
@@ -143,12 +142,11 @@ log.reconnecting = Переподключение ({0}/{1}), стратегия 
 log.reconnectGiveUp = Не удалось переподключиться автоматически. Нажмите кнопку, чтобы подключиться снова.
 log.unsupportedStrategy = «{0}» недоступна на macOS: {1}
 log.customSaveFailed = Не удалось сохранить {0}: {1}
-err.daemonGone = служба zarpd перестала отвечать
+err.daemonGone = Соединение прервано.
 err.unknownLoss = туннель исчез (причина не сообщена)
 err.foreignVpn = Другой VPN или прокси управляет маршрутом по умолчанию. Выключите его и подключитесь снова.
 err.noAccount = Аккаунт WARP ещё не зарегистрирован.
 strategy.wgUnsupported = WireGuard пока не поддерживается на macOS
-strategy.directH2 = Без обхода по HTTP/2 (прямое подключение)
 strategy.badSyntax = {0}
 strategy.unknownFeature = требует больше, чем фейк-пакет или обычное разделение TCP ({0}) — пока недоступно на macOS
 strategy.badsum = требует подмены контрольной суммы через raw-сокеты — пока недоступно на macOS
@@ -170,22 +168,160 @@ btn.save = Сохранить
 custom.skipped = Сохранено. Строк не распознано и пропущено: {0} (формат: Имя | h3/h2/wg | аргументы):
 custom.saveFailed = Не удалось сохранить {0}: {1}
 
-# ---- macOS: фоновая служба zarpd
-daemon.title = Служба zarpd
-daemon.notInstalled = Не установлена
-daemon.requiresApproval = Установлена — требуется разрешение в Системных настройках
-daemon.enabled = Установлена
-daemon.notFound = Не найдена — попробуйте переустановить Zarp
-daemon.unknown = Неизвестный статус ({0})
-daemon.respondingYes = Отвечает (версия {0}, pid {1})
-daemon.respondingNo = Не отвечает: {0}
-daemon.respondingUnknown = Проверка...
-daemon.badLocation = Zarp запущен с образа диска или из временной папки загрузки, и фоновая служба перестанет работать, как только они исчезнут. Перетащите Zarp в папку «Программы», извлеките образ диска, откройте Zarp из «Программ» и снова нажмите «Установить».
-daemon.badLocationApplications = Zarp устанавливает фоновую службу только из папки «Программы»: служба работает с правами администратора и не должна лежать там, где её может изменить обычная программа. Перетащите Zarp в папку «Программы», откройте его оттуда и снова нажмите «Установить».
-daemon.install = Установить
-daemon.restart = Перезапустить
-daemon.uninstall = Удалить
-daemon.openSettings = Открыть Системные настройки…
 daemon.refresh = Обновить
-daemon.stale = Работает служба версии {0}, а приложение версии {1}. Нажмите «Перезапустить», чтобы обновить её.
-daemon.restartingStale = Служба zarpd версии {0}, а приложение версии {1}: перезапускаю службу, чтобы обновить её.
+
+# Country selection and connection evidence
+strategy.countries = Страны
+strategy.allCountries = Все
+strategy.countryHint = Метки стран описывают каталог, но не доказывают эффективность у вашего провайдера.
+result.independent = Подтверждено на разных адресах
+result.freshOnly = Два успешных подключения; независимость адресов не установлена
+
+# Custom WARP endpoints
+settings.endpoints = Адреса WARP
+settings.endpointHelp = Публичный числовой IPv4:порт или [IPv6]:порт, по одному на строку. Комментарии начинаются с #. До 64 адресов. Пустой список использует стандартный набор. Изменение списка сбрасывает результаты.
+settings.singleEndpoint = Один адрес: новые подключения не подтверждают независимость адресов.
+err.endpointList = Ошибка списка в строке {0}. Укажите публичный числовой IP и порт 1-65535.
+btn.resetEndpoints = Сбросить адреса
+# Server library and explicit subscription downloads
+sources.title = Серверы и подписки
+sources.done = Готово
+sources.runtimePending = Выберите источник в главном окне, затем подключитесь или запустите поиск совместимых пар сервера и стратегии.
+sources.empty = Сохранённых серверов нет. Импортируйте ссылки или добавьте подписку ниже.
+sources.source = Источник
+sources.refresh = Обновить
+sources.delete = Удалить
+sources.server = Сервер
+sources.address = Адрес
+sources.select = Сохранить выбор
+sources.automatic = Автоматически
+sources.lastUpdate = Обновлено: {0}
+sources.missingSelection = Сохранённый сервер отсутствует в списке. Выберите сервер или автоматический режим.
+sources.importTitle = Импорт ссылок на серверы
+sources.importHelp = Вставьте ссылки VLESS, Trojan или Hysteria2, по одной на строку. Данные доступа сохраняются в закрытых файлах.
+sources.import = Импортировать
+sources.subscriptionTitle = Добавить или переименовать подписку
+sources.label = Название (необязательно)
+sources.url = HTTPS-ссылка на подписку
+sources.saveHelp = Сохранение записывает ссылку локально. Обновление загружает список через текущее подключение; при ошибке сохраняется последний успешный список.
+sources.refreshing = Обновление подписки...
+sources.manual = Импортированные серверы
+sources.subscription = Подписка {0}
+sources.imported = Импортировано серверов: {0}; пропущено записей: {1}.
+sources.saved = Подписка сохранена. Нажмите «Обновить», чтобы загрузить серверы.
+sources.updated = Обновлено серверов: {0}; пропущено записей: {1}.
+sources.deleted = Удалено.
+sources.selectionSaved = Выбор сервера сохранён.
+sources.cancelled = Обновление отменено.
+sources.deleteTitle = Удалить подписку?
+sources.deleteHelp = Удалить эту подписку и загруженный список её серверов?
+sources.networkError = Ошибка загрузки. Сохранённый список серверов остаётся доступен.
+sources.tlsError = Не удалось проверить TLS-сертификат подписки.
+sources.timeoutError = Истекло время запроса подписки.
+sources.sizeError = Подписка превышает допустимый размер.
+sources.busyError = Эта подписка уже обновляется.
+sources.formatError = Поддерживаемые ссылки на серверы не найдены. Сохранённый список оставлен.
+sources.httpError = Подписка вернула HTTP {0}. Сохранённый список оставлен.
+sources.invalid = Некорректное поле: {0}. Проверьте введённые настройки.
+sources.storageError = Не удалось прочитать или сохранить закрытые данные серверов. Проверьте права папки данных.
+
+# WARP+ account management (Windows Zarp MIT strings, macOS account lifecycle)
+warpPlus.title = WARP+
+warpPlus.hint = Подключите имеющуюся подписку WARP+. Скопируйте ключ в приложении 1.1.1.1 на телефоне: Настройки > Аккаунт. Подключайтесь через Zarp как обычно: выбранная стратегия zapret2 работает и с WARP+.
+warpPlus.account = Аккаунт: {0}
+warpPlus.key = Лицензионный ключ WARP+
+warpPlus.privacy = Ключ передаётся Cloudflare для аккаунта Zarp. Zarp не сохраняет его и не записывает в журнал.
+warpPlus.invalid = Ключ должен состоять из трёх групп по восемь латинских букв или цифр, разделённых дефисами.
+warpPlus.loading = Проверка аккаунта WARP...
+warpPlus.applying = Применение лицензии WARP+...
+warpPlus.applied = WARP+ привязан к этому устройству. Переподключитесь через Zarp, чтобы использовать обновлённый аккаунт.
+warpPlus.unconfirmed = WARP принял ключ, но подтвердить WARP+ не удалось. Обновите данные аккаунта и проверьте подписку перед переподключением.
+warpPlus.applyFailed = Не удалось применить ключ. Проверьте подписку, лимит устройств и доступ к Cloudflare, затем повторите попытку.
+warpPlus.accountFailed = Не удалось прочитать аккаунт. Проверьте доступ к Cloudflare и попробуйте снова.
+warpPlus.timeout = WARP не ответил вовремя. Ключ мог примениться; обновите данные аккаунта перед повторной попыткой.
+warpPlus.busy = Дождитесь завершения текущей операции и повторите попытку.
+warpPlus.noWarp = Аккаунт WARP для Zarp ещё не зарегистрирован. Примените ключ, чтобы принять условия и зарегистрироваться без запуска туннеля.
+warpPlus.apply = Применить ключ
+warpPlus.refresh = Обновить аккаунт
+warpPlus.unknown = Неизвестен или не зарегистрирован
+warpPlus.free = WARP (бесплатный)
+warpPlus.plus = WARP+
+warpPlus.unlimited = WARP+ Unlimited
+warpPlus.zerotrust = Cloudflare Zero Trust
+warpPlus.updateDaemon = WARP+ временно недоступен. Попробуйте позже.
+sources.cached = Не удалось обновить подписку. Используется последний сохранённый список.
+sources.unavailable = Для выбранного источника или сервера нет доступной совместимой пары.
+sources.refreshFailed = Не удалось обновить выбранную подписку.
+sources.subtitle = Серверный туннель + zapret
+sources.hintFirstRun = Нажмите, и Zarp найдёт рабочую пару сервера и стратегии и подключит серверный туннель через zapret
+settings.title = Настройки Zarp
+settings.connection = Сервер и эндпоинты
+settings.close = Закрыть
+strategy.countrySelection = Страны: {0}
+strategy.countryRU = Россия
+strategy.countryIR = Иран
+strategy.countryCN = Китай
+
+# Server connection and application routing
+connection.useServer = Использовать свой сервер вместо WARP
+connection.serverHelp = Вставьте ссылки VLESS, Trojan или Hysteria2, по одной на строку, либо HTTPS-адрес подписки. Zarp подберёт совместимую пару сервера и стратегии zapret2.
+connection.savedSource = Сохранённый список
+connection.newServer = Новый сервер или подписка
+connection.serverInput = Ссылки серверов или адрес подписки
+connection.savedServers = Сохранено серверов: {0}. Оставьте поле пустым, чтобы использовать этот список.
+connection.ipv6 = IPv6 через сервер
+connection.dns = DNS-сервер
+connection.serverSaveHelp = При сохранении подписка обновляется, новые ссылки заменяют ручной список.
+connection.saving = Сохранение и загрузка серверов...
+connection.nextConnection = Изменения вступят в силу при следующем подключении.
+connection.noServer = Вставьте ссылку сервера или адрес подписки либо выберите сохранённый список серверов.
+routing.invalid = Неверные настройки приложений, IPv6 или DNS. Проверьте выбранные программы и числовой адрес DNS.
+routing.fullTunnelRequired = Для маршрутизации приложений нужен захват всего трафика. Включите его в настройках.
+apps.title = Прокси для программ
+apps.enable = Выборочная маршрутизация приложений
+apps.help = Выберите приложения или исполняемые файлы. Выбранный .app включает помощники внутри его пакета. Внешние помощники добавьте отдельно. При сохранении включается полный захват для разделения трафика; в режиме выбранных приложений остальные идут напрямую.
+apps.serverOnly = Эти правила работают со своим сервером. В режиме WARP правила приложений не применяются.
+apps.search = Поиск по названию или пути
+apps.application = Программа
+apps.path = Путь
+apps.selected = Выбрано приложений: {0}
+apps.dnsHelp = При включённой замене DNS общие системные DNS-запросы идут через сервер. Потоки с неопределённым процессом блокируются при фильтрации приложений.
+apps.add = Добавить программу...
+apps.modeAll = Все приложения
+apps.modeInclude = Только выбранные
+apps.modeExclude = Все, кроме выбранных
+apps.choose = Выберите хотя бы одну программу.
+opt.routeAllServer = Применять подключение к трафику Mac
+opt.overrideDNSServer = Использовать заданный DNS-сервер
+
+# Account setup and protected API recovery
+err.accountUncertain = Cloudflare мог создать аккаунт, но ответ был потерян. Авторегистрация приостановлена, чтобы не создавать дубликаты. Сохраните существующие файлы аккаунта.
+err.accountUnavailable = Не удалось безопасно прочитать данные аккаунта. Проверьте права папки данных. Zarp не будет заменять его новым аккаунтом.
+err.accountRateLimited = Cloudflare ограничил запросы регистрации. Подождите перед повтором. Незавершённая регистрация сохранена.
+err.accountCertificate = Не удалось проверить сертификат API Cloudflare. Регистрация остановлена.
+err.accountNetwork = Не удалось связаться с API аккаунта Cloudflare доступными TLS-стратегиями. Данные незавершённой регистрации сохранены.
+err.accountRejected = API аккаунта Cloudflare отклонил запрос или вернул непригодный ответ. Проверьте аккаунт и обновите его статус.
+err.licenseUncertain = Запрос с ключом мог дойти до Cloudflare. Обновите аккаунт перед повторной отправкой ключа.
+detail.registering = Регистрация WARP с защитой API...
+
+
+connection.preparing = Подготовка подключения...
+connection.permissionRequired = Разрешите работу Zarp в настройках macOS.
+connection.prepareFailed = Не удалось подготовить подключение. Попробуйте ещё раз.
+connection.moveToApplications = Переместите Zarp в Программы и откройте снова.
+
+log.appStarted = Zarp {0} запущен.
+log.connectionReplacing = Обновление компонента подключения...
+log.connectionRegistering = Регистрация компонента подключения...
+log.connectionWaiting = Ожидание запуска компонента подключения...
+log.connectionReady = Подключение подготовлено.
+log.connectionPreparationFailed = Ошибка подготовки подключения: {0}
+
+detail.verifying = Проверка устойчивости подключения...
+log.recoveryAlternatives = Соединение нестабильно. Проверяю другие стратегии.
+log.recoveryCandidate = Проверяю другую стратегию: {0}
+log.networkChanged = Сеть изменилась. Результаты прежней сети требуют новой проверки.
+detail.networkChanged = Сеть изменилась во время проверки. Подключитесь снова.
+result.unstable = Соединение оборвалось вскоре после проверки
+err.peerKeyMismatch = Ключ сервера {0} не совпадает с доверенным ключом WARP.
+strategy.required = Нужна внешняя стратегия zapret. Прямые подключения WARP отключены.

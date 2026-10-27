@@ -51,6 +51,19 @@ The app bundle contains:
   library and the Go modules listed below.
 - **Resources/blobs/\*.bin** — fake-packet captures from [zapret2](https://github.com/bol-van/zapret2)
   by bol-van (MIT; reproduced below), included unmodified.
+- **zarp-backend-guardian**: a separately owned Go helper supervising server engines.
+- **sing-box 1.13.14**: an unmodified external executable, GPL-3.0-or-later.
+  Copyright and license: sing-box-LICENSE.txt and sing-box-COPYING.txt.
+  [Pinned source](https://github.com/SagerNet/sing-box/tree/v1.13.14),
+  [upstream build instructions](https://sing-box.sagernet.org/installation/build-from-source/),
+  [release and upstream binary](https://github.com/SagerNet/sing-box/releases/tag/v1.13.14).
+- **Xray 26.9.30**: an unmodified external executable, MPL-2.0.
+  License: Xray-LICENSE.txt.
+  [Pinned source](https://github.com/XTLS/Xray-core/tree/v26.9.30),
+  [release and upstream binary](https://github.com/XTLS/Xray-core/releases/tag/v26.9.30).
+  The app's build verifies exact archive and executable SHA-256 pins in
+  scripts/test-parity-backend-loopback.py. Server engines are separate processes;
+  their source code is not copied into the Swift application or daemon.
 
 HEADER
 

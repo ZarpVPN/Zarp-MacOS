@@ -22,8 +22,8 @@ import (
 // dies mid-tunnel leaves the backup behind; RecoverStale puts it back the next time zarpd starts,
 // before it accepts any request.
 
-// The resolvers are fixed here, never taken from a client: letting a user-level process choose
-// the system DNS through a root daemon would be a DNS-hijack primitive.
+// WARP keeps these fixed defaults. Authenticated server-mode requests may choose
+// a validated numeric resolver; arbitrary names and command arguments are refused.
 var (
 	CloudflareDNSv4 = []string{"1.1.1.1", "1.0.0.1"}
 	CloudflareDNSv6 = []string{"2606:4700:4700::1111", "2606:4700:4700::1001"}
@@ -147,13 +147,33 @@ func (d *DNSOverride) flush() {
 // remembering what it had. includeV6 adds Cloudflare's IPv6 resolvers (only sensible when IPv6 is
 // itself going through the tunnel).
 func (d *DNSOverride) Apply(device string, includeV6 bool) error {
+	servers := append([]string(nil), CloudflareDNSv4...)
+	if includeV6 {
+		servers = append(servers, CloudflareDNSv6...)
+	}
+	return d.ApplyServers(device, servers)
+}
+
+// ApplyServers accepts numeric addresses only. Recovery still retains the exact
+// original service configuration, independently of the chosen server resolver.
+func (d *DNSOverride) ApplyServers(device string, servers []string) error {
+	if len(servers) == 0 || len(servers) > 8 {
+		return errors.New("invalid DNS servers")
+	}
+	for _, server := range servers {
+		ip := net.ParseIP(server)
+		if ip == nil || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			return errors.New("invalid DNS server")
+		}
+	}
+	servers = append([]string(nil), servers...)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	// A backup still on disk means an earlier run died with the override applied: put that back
 	// first, so the "original" about to be recorded is the real original, not our own leftovers.
 	if err := d.restoreLocked(); err != nil {
-		return fmt.Errorf("restoring DNS left over from a previous run: %w", err)
+		return errors.Join(ErrCleanupIncomplete, fmt.Errorf("restoring DNS left over from a previous run: %w", err))
 	}
 
 	service, err := d.serviceForDevice(device)
@@ -168,14 +188,16 @@ func (d *DNSOverride) Apply(device string, includeV6 bool) error {
 	if err := d.writeBackup(b); err != nil {
 		return fmt.Errorf("saving the original DNS settings: %w", err)
 	}
-	servers := append([]string(nil), CloudflareDNSv4...)
-	if includeV6 {
-		servers = append(servers, CloudflareDNSv6...)
-	}
 	if err := d.setServers(service, servers); err != nil {
-		// Nothing was changed (or we can't tell): the backup is what the service has now at worst.
-		_ = d.setServers(service, orig)
-		d.removeBackup()
+		// A failed command may have changed state. Keep recovery data unless
+		// restoration actually succeeds; never assume failure means no change.
+		if restoreErr := d.setServers(service, orig); restoreErr != nil {
+			d.backup = b
+			return errors.Join(ErrCleanupIncomplete, err, restoreErr)
+		}
+		if removeErr := d.removeBackup(); removeErr != nil {
+			return errors.Join(ErrCleanupIncomplete, err, removeErr)
+		}
 		return err
 	}
 	d.backup = b
@@ -209,8 +231,10 @@ func (d *DNSOverride) restoreLocked() error {
 	if err := d.setServers(b.Service, b.Servers); err != nil {
 		return err
 	}
+	if err := d.removeBackup(); err != nil {
+		return err
+	}
 	d.backup = nil
-	d.removeBackup()
 	d.flush()
 	return nil
 }
@@ -241,18 +265,21 @@ func (d *DNSOverride) readBackup() (*dnsBackup, error) {
 	}
 	var b dnsBackup
 	if err := json.Unmarshal(data, &b); err != nil || b.Service == "" {
-		// A backup we can't read can't be restored; keeping it would make every future start
-		// fail on it. Drop it and say so.
-		d.removeBackup()
-		return nil, fmt.Errorf("unreadable DNS backup %s discarded", d.backupPath)
+		// Missing recovery data must not be mistaken for an original setting.
+		return nil, errors.New("unreadable DNS recovery data retained")
 	}
 	for _, s := range b.Servers {
 		if net.ParseIP(s) == nil {
-			d.removeBackup()
-			return nil, fmt.Errorf("DNS backup %s holds an invalid address %q and was discarded", d.backupPath, s)
+			return nil, errors.New("invalid DNS recovery data retained")
 		}
 	}
 	return &b, nil
 }
 
-func (d *DNSOverride) removeBackup() { _ = os.Remove(d.backupPath) }
+func (d *DNSOverride) removeBackup() error {
+	err := os.Remove(d.backupPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
+}

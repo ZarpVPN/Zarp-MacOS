@@ -53,10 +53,20 @@ func (j *Journal) readLocked() ([]journalEntry, error) {
 		return nil, err
 	}
 	var entries []journalEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		// Unreadable: dropping it is the only way every future start doesn't trip over it.
-		_ = os.Remove(j.path)
-		return nil, fmt.Errorf("unreadable route journal %s discarded: %w", j.path, err)
+	if err := json.Unmarshal(data, &entries); err != nil || entries == nil {
+		return nil, errors.Join(ErrCleanupIncomplete, errors.New("unreadable route recovery data retained"))
+	}
+	for _, entry := range entries {
+		address, err := netip.ParseAddr(entry.Host)
+		if err != nil || address.Zone() != "" || entry.Interface == "" || len(entry.Interface) > 64 || strings.ContainsAny(entry.Interface, " \t\r\n\x00") {
+			return nil, errors.Join(ErrCleanupIncomplete, errors.New("invalid route recovery data retained"))
+		}
+		if entry.Gateway != "" {
+			gateway, err := netip.ParseAddr(entry.Gateway)
+			if err != nil || gateway.Is4() != address.Is4() {
+				return nil, errors.Join(ErrCleanupIncomplete, errors.New("invalid route recovery data retained"))
+			}
+		}
 	}
 	return entries, nil
 }
@@ -85,7 +95,10 @@ func (j *Journal) writeLocked(entries []journalEntry) error {
 func (j *Journal) add(e journalEntry) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	entries, _ := j.readLocked()
+	entries, err := j.readLocked()
+	if err != nil {
+		return err
+	}
 	for _, x := range entries {
 		if x == e {
 			return nil
@@ -94,37 +107,43 @@ func (j *Journal) add(e journalEntry) error {
 	return j.writeLocked(append(entries, e))
 }
 
-func (j *Journal) remove(host string) {
+func (j *Journal) remove(host string) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	entries, _ := j.readLocked()
+	entries, err := j.readLocked()
+	if err != nil {
+		return err
+	}
 	kept := entries[:0]
 	for _, x := range entries {
 		if x.Host != host {
 			kept = append(kept, x)
 		}
 	}
-	_ = j.writeLocked(kept)
+	return j.writeLocked(kept)
 }
 
 // Recover deletes every exclusion route a previous run left behind (the journal still lists it only
-// if that run died before cleaning up) and clears the journal. Call once at startup.
+// if that run died before cleaning up). Failed entries and unreadable data stay
+// available for recovery. Call once at startup; serialize against add/remove.
 func (j *Journal) Recover(r *Router) []error {
 	j.mu.Lock()
+	defer j.mu.Unlock()
 	entries, err := j.readLocked()
-	j.mu.Unlock()
 	var errs []error
 	if err != nil {
-		errs = append(errs, err)
+		return []error{err}
 	}
+	var retained []journalEntry
 	for _, e := range entries {
 		if _, derr := r.deleteExclusion(e); derr != nil {
 			errs = append(errs, derr)
+			retained = append(retained, e)
 		}
 	}
-	j.mu.Lock()
-	_ = j.writeLocked(nil)
-	j.mu.Unlock()
+	if err := j.writeLocked(retained); err != nil {
+		errs = append(errs, err)
+	}
 	return errs
 }
 
@@ -137,16 +156,22 @@ func (j *Journal) Recover(r *Router) []error {
 // is exactly the situation the exclusion exists to prevent.
 func (r *Router) AddExclusion(host netip.Addr, phys *Physical, journal *Journal) (undo func() error, err error) {
 	host = host.Unmap()
-	if !host.Is4() {
-		return nil, fmt.Errorf("exclusion route: %s is not an IPv4 address", host)
+	if !host.IsValid() || host.Zone() != "" {
+		return nil, fmt.Errorf("invalid exclusion address")
 	}
 	if phys == nil || phys.Interface == "" {
 		return nil, errors.New("exclusion route: the physical interface is unknown")
 	}
 	entry := journalEntry{Host: host.String(), Interface: phys.Interface}
 	args := []string{"-n", "add", "-host", entry.Host}
+	if host.Is6() {
+		args = []string{"-n", "add", "-inet6", "-host", entry.Host}
+	}
 	if phys.Gateway != nil && !phys.Gateway.IsUnspecified() {
 		entry.Gateway = phys.Gateway.String()
+		if host.Is6() && phys.GatewayZone != "" {
+			entry.Gateway += "%" + phys.GatewayZone
+		}
 		args = append(args, entry.Gateway)
 	} else {
 		args = append(args, "-interface", phys.Interface)
@@ -159,33 +184,38 @@ func (r *Router) AddExclusion(host netip.Addr, phys *Physical, journal *Journal)
 			return nil, fmt.Errorf("exclusion route: saving the route journal: %w", err)
 		}
 	}
-	forget := func() {
+	forget := func() error {
 		if journal != nil {
-			journal.remove(entry.Host)
+			if err := journal.remove(entry.Host); err != nil {
+				return errors.Join(ErrCleanupIncomplete, err)
+			}
 		}
+		return nil
 	}
 
 	out, rerr := r.run.Run(routeBin, args...)
 	owned := true
 	if rerr != nil {
 		if !strings.Contains(out, "File exists") {
-			forget()
-			return nil, fmt.Errorf("exclusion route for %s: %w: %s", entry.Host, rerr, strings.TrimSpace(out))
+			return nil, errors.Join(fmt.Errorf("exclusion route for %s: %w: %s", entry.Host, rerr, strings.TrimSpace(out)), forget())
 		}
 		iface, gerr := r.routeInterface(entry.Host, true)
 		if gerr != nil || iface != phys.Interface {
-			forget()
-			return nil, fmt.Errorf("exclusion route for %s: a route through %q already exists", entry.Host, iface)
+			return nil, errors.Join(fmt.Errorf("exclusion route for %s: a route through %q already exists", entry.Host, iface), forget())
 		}
 		owned = false // somebody else's route, through the right interface: use it, leave it
+		if err := forget(); err != nil {
+			return nil, err
+		}
 	}
 	return func() error {
-		defer forget()
 		if !owned {
 			return nil
 		}
-		_, err := r.deleteExclusion(entry)
-		return err
+		if _, err := r.deleteExclusion(entry); err != nil {
+			return err // Retain this owned route's recovery record on failure.
+		}
+		return forget()
 	}, nil
 }
 
@@ -193,7 +223,30 @@ func (r *Router) AddExclusion(host netip.Addr, phys *Physical, journal *Journal)
 // existed) is not an error. `route delete -host` removes only an exact host route, so it can never
 // take a default or /1 route with it.
 func (r *Router) deleteExclusion(e journalEntry) (bool, error) {
-	out, err := r.run.Run(routeBin, "-n", "delete", "-host", e.Host)
+	query := []string{"-n", "get", "-host", e.Host}
+	if ip, err := netip.ParseAddr(e.Host); err == nil && ip.Is6() {
+		query = []string{"-n", "get", "-inet6", "-host", e.Host}
+	}
+	current, qerr := r.run.Run(routeBin, query...)
+	if qerr != nil {
+		if strings.Contains(current, "not in table") {
+			return false, nil
+		}
+		return false, fmt.Errorf("checking exclusion ownership: %w", qerr)
+	}
+	fields := parseRouteGet(current)
+	if fields["interface"] != e.Interface || fields["destination"] != e.Host || !strings.Contains(fields["flags"], "HOST") {
+		return false, nil
+	}
+	if e.Gateway != "" && fields["gateway"] != e.Gateway {
+		return false, nil
+	}
+
+	args := []string{"-n", "delete", "-host", e.Host}
+	if ip, err := netip.ParseAddr(e.Host); err == nil && ip.Is6() {
+		args = []string{"-n", "delete", "-inet6", "-host", e.Host}
+	}
+	out, err := r.run.Run(routeBin, args...)
 	if err != nil {
 		if strings.Contains(out, "not in table") {
 			return false, nil

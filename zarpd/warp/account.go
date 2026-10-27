@@ -1,22 +1,24 @@
-// Package warp registers and connects a WARP MASQUE account, built directly on usque
-// (github.com/Diniboy1123/usque, MIT) rather than on Zarp-Android's zarpcore (GPL-3.0) — see
-// docs/ARCHITECTURE.md §11 for why. account.go mirrors Android's account.go, whose sequence has no
-// Android-specific dependency at all: it's a thin wrapper around usque/api calls.
+// Package warp registers and connects native WARP MASQUE using pinned usque.
+// The account setup client owns HTTP contexts and durable enrollment checkpoints;
+// it does not use usque's contextless registration requests.
 package warp
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/Diniboy1123/usque/api"
 	usqueconfig "github.com/Diniboy1123/usque/config"
 	"github.com/Diniboy1123/usque/models"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -28,23 +30,15 @@ const (
 // resulting config to configPath. The caller must have obtained the user's consent to the
 // Cloudflare WARP Terms of Service before calling it (acceptTos=true below assumes that).
 func Register(configPath, deviceName string) error {
-	acc, err := api.Register(registerModel, registerLocale, "", true)
-	if err != nil {
-		return fmt.Errorf("register: %w", err)
-	}
-	_, privDER, pubDER, err := generateECKeyPair()
-	if err != nil {
-		return fmt.Errorf("key pair: %w", err)
-	}
-	upd, err := api.EnrollKey(acc.ID, acc.Token, pubDER, deviceName)
-	if err != nil {
-		return fmt.Errorf("enroll key: %w", err)
-	}
-	cfg, err := configFromAccount(upd, acc.Token, privDER)
-	if err != nil {
-		return err
-	}
-	return writeConfig(configPath, cfg)
+	return RegisterContext(context.Background(), configPath, deviceName)
+}
+
+func RegisterContext(ctx context.Context, configPath, deviceName string) error {
+	service := Registration{Path: configPath, DeviceName: deviceName, Factory: func(_ context.Context, s *RegistrationStrategy) (http.RoundTripper, error) {
+		return NewRegistrationTransport(s, nil)
+	}}
+	_, err := service.Do(ctx, AccountSetupRequest{Version: AccountSetupVersion, Operation: "register"})
+	return err
 }
 
 func configFromAccount(upd *models.AccountData, token string, privKeyDER []byte) (*usqueconfig.Config, error) {
@@ -102,18 +96,41 @@ func writeConfig(path string, cfg *usqueconfig.Config) error {
 	return os.Rename(tmp, path)
 }
 
-// LoadConfig reads and validates a previously written WARP config.
+// Account files are small JSON documents. Status/ping must never open a FIFO,
+// device or unbounded file as an account. This limit also applies if a regular
+// file grows after its initial size check. No account bytes appear in errors.
+const maxAccountConfigBytes = 64 * 1024
+
+// LoadConfig reads a bounded regular account file without following a final
+// symlink. Nonblocking open precedes descriptor validation so a FIFO cannot
+// stall the caller while it still holds the account-status mutex.
 func LoadConfig(path string) (*usqueconfig.Config, error) {
-	data, err := os.ReadFile(path)
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NONBLOCK|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, err
+		return nil, err // unix.Open returns errno without a secret-bearing path.
+	}
+	input := os.NewFile(uintptr(fd), "warp-account")
+	defer input.Close()
+	info, err := input.Stat()
+	if err != nil {
+		return nil, errors.New("account file metadata unavailable")
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0022 != 0 || info.Size() <= 0 || info.Size() > maxAccountConfigBytes {
+		return nil, errors.New("account file is not a bounded protected regular file")
+	}
+	data, err := io.ReadAll(io.LimitReader(input, maxAccountConfigBytes+1))
+	if err != nil {
+		return nil, errors.New("account file read failed")
+	}
+	if len(data) > maxAccountConfigBytes {
+		return nil, errors.New("account file exceeds size limit")
 	}
 	var cfg usqueconfig.Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("config %s: %w", path, err)
+	if json.Unmarshal(data, &cfg) != nil {
+		return nil, errors.New("invalid account data")
 	}
 	if cfg.PrivateKey == "" || cfg.EndpointPubKey == "" {
-		return nil, fmt.Errorf("config %s: missing keys", path)
+		return nil, errors.New("account file missing keys")
 	}
 	return &cfg, nil
 }

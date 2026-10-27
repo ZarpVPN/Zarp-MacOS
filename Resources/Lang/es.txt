@@ -1,7 +1,7 @@
 # Zarp: español. Las claves coinciden con en.txt.
 
 # ---- ventana principal
-main.subtitle = Cloudflare WARP para redes que lo bloquean
+main.subtitle = Cloudflare WARP con zapret2
 main.settingsTip = Ajustes y estrategia
 main.languageTip = Idioma
 main.logShow = Registro ▾
@@ -42,7 +42,7 @@ close.exit = Salir de la app
 
 # ---- ajustes
 settings.strategy = Estrategia
-settings.explain = Doble clic o «Usar» activa la estrategia. ✔ actual, ✔✔ superó dos comprobaciones independientes.
+settings.explain = Usar cambia la estrategia. ✔ actual, ✔✔ dos conexiones nuevas correctas. La independencia se indica al pasar el cursor.
 settings.options = Opciones
 settings.directTip = WARP sin zapret
 col.strategy = Estrategia
@@ -55,7 +55,7 @@ btn.testSelected = Probar seleccionadas
 btn.quickScan = Búsqueda rápida
 btn.fullScan = Búsqueda completa
 btn.cancel = Cancelar
-tip.quickScan = Se detiene al encontrar {0} estrategias válidas (se ajusta en Opciones)
+tip.quickScan = Se detiene tras {0} estrategias confirmadas (en Opciones)
 tip.fullScan = Prueba las {0} estrategias. Tarda más, pero no omite ninguna
 btn.custom = Estrategias propias...
 btn.dataFolder = Carpeta de datos
@@ -68,7 +68,7 @@ opt.closeTray = Ocultar en la barra de menús
 opt.closeExit = Salir de la app
 opt.closeAccessible = Acción al cerrar la ventana
 opt.disconnectOnExit = Desconectar WARP al salir
-opt.isolate = Aislar pruebas (nuevo endpoint en cada una)
+opt.isolate = Alternar direcciones predeterminadas entre pruebas
 opt.timeout = Espera de conexión, s
 opt.stopAfter = Búsqueda rápida: cuántas\nestrategias válidas buscar
 
@@ -78,7 +78,6 @@ result.works1 = funciona (1 prueba)
 result.notConfirmed = no confirmada: {0}
 result.applyFailed = no conectó al aplicarla
 
-strategy.direct = Conexión directa (sin desync)
 
 # ---- línea de estado
 detail.disconnecting = Desconectando...
@@ -116,7 +115,7 @@ log.testFail = ✘ {0}: {1}
 log.recheck = Candidatas a comprobar de nuevo: {0}
 log.recheckOk = ✔✔ {0}: confirmada (conexión {1} ms, ping {2} ms)
 log.candidatesFailed = Las candidatas no superaron la nueva comprobación; probablemente pasaron por casualidad. Busca de nuevo o aumenta la espera.
-log.noneWorked = Ninguna estrategia funcionó. Aumenta la espera en los ajustes o añade tus propias estrategias en {0}
+log.noneWorked = Ninguna estrategia superó la verificación de tráfico. Elige un servidor configurado o añade estrategias compatibles a {0}.
 log.best = Mejor estrategia: {0} (conexión {1} ms, ping {2} ms)
 log.tryNext = «{0}» no conectó, probando la siguiente.
 log.connectingWith = Conectando con la estrategia: {0}
@@ -134,30 +133,11 @@ log.configBroken = Los ajustes están dañados, se usan los valores predetermina
 log.configSaveFailed = No se pudieron guardar los ajustes: {0}
 
 # ---- Estrategias no disponibles
-strategy.directH2 = Directa por HTTP/2 (sin desync)
 strategy.badSyntax = {0}
 strategy.unknownFeature = requiere algo más que un paquete falso o una división TCP simple ({0}) — aún no disponible en macOS
 strategy.badsum = requiere alterar sumas de comprobación con sockets raw — aún no disponible en macOS
 
-# ---- Servicio zarpd
-daemon.title = Servicio zarpd
-daemon.notInstalled = No instalado
-daemon.requiresApproval = Instalado — requiere aprobación en Ajustes del Sistema
-daemon.enabled = Instalado
-daemon.notFound = No encontrado — prueba a reinstalar Zarp
-daemon.unknown = Estado desconocido ({0})
-daemon.respondingYes = Responde (versión {0}, pid {1})
-daemon.respondingNo = No responde: {0}
-daemon.respondingUnknown = Comprobando...
-daemon.badLocation = Zarp se está ejecutando desde una imagen de disco o desde una carpeta de descargas temporal, y el servicio en segundo plano dejaría de funcionar en cuanto desaparezca. Arrastra Zarp a la carpeta Aplicaciones, expulsa la imagen de disco, abre Zarp desde Aplicaciones y pulsa «Instalar» de nuevo.
-daemon.install = Instalar
-daemon.restart = Reiniciar
-daemon.uninstall = Desinstalar
-daemon.openSettings = Abrir Ajustes del Sistema…
 daemon.refresh = Actualizar
-daemon.badLocationApplications = Zarp solo puede instalar su servicio en segundo plano si está en la carpeta Aplicaciones: el servicio se ejecuta con permisos de administrador y no debe estar en un lugar que los programas normales puedan modificar. Arrastra Zarp a la carpeta Aplicaciones, ábrelo desde allí y pulsa «Instalar» de nuevo.
-daemon.stale = El servicio en ejecución es la versión {0}, pero esta app es la {1}. Pulsa «Reiniciar» para actualizarlo.
-daemon.restartingStale = El servicio zarpd es la versión {0} pero la app es la {1}: se reinicia el servicio para actualizarlo.
 
 # ---- Pérdida de conexión, cuenta WARP
 detail.connectionLost = Conexión perdida
@@ -169,7 +149,7 @@ log.reconnecting = Reconectando ({0}/{1}) con «{2}»...
 log.reconnectGiveUp = No se pudo reconectar automáticamente. Pulsa el botón para conectar de nuevo.
 log.unsupportedStrategy = «{0}» no está disponible en macOS: {1}
 log.customSaveFailed = No se pudo guardar {0}: {1}
-err.daemonGone = el servicio zarpd dejó de responder
+err.daemonGone = La conexión se interrumpió.
 err.unknownLoss = el túnel desapareció (no se indicó el motivo)
 err.foreignVpn = Otra VPN o proxy controla la ruta predeterminada. Desactívala y vuelve a conectar.
 err.noAccount = Todavía no hay ninguna cuenta WARP registrada.
@@ -191,3 +171,159 @@ opt.reconnect = Reconectar automáticamente si se corta la conexión
 btn.save = Guardar
 custom.skipped = Guardado. {0} línea(s) no se entendieron y se omitieron (formato: Nombre | h3/h2/wg | argumentos):
 custom.saveFailed = No se pudo guardar {0}: {1}
+
+# Country selection and connection evidence
+strategy.countries = Países
+strategy.allCountries = Todos
+strategy.countryHint = Las etiquetas orientan sobre el catálogo, sin demostrar eficacia con tu proveedor.
+result.independent = Confirmado en direcciones distintas
+result.freshOnly = Dos conexiones correctas; independencia de direcciones sin confirmar
+
+# Custom WARP endpoints
+settings.endpoints = Direcciones WARP
+settings.endpointHelp = IPv4:puerto o [IPv6]:puerto numérico público, uno por línea. Comentarios con #. Hasta 64 direcciones. Vacío usa la lista predeterminada. Cambiar la lista borra resultados anteriores.
+settings.singleEndpoint = Una dirección: las conexiones nuevas no establecen independencia.
+err.endpointList = Lista inválida en la línea {0}. Usa una IP numérica pública y puerto 1-65535.
+btn.resetEndpoints = Restablecer direcciones
+# Server library and explicit subscription downloads
+sources.title = Servidores y suscripciones
+sources.done = Listo
+sources.runtimePending = Selecciona una fuente en la ventana principal y conecta o busca pares compatibles de servidor y estrategia.
+sources.empty = No hay servidores guardados. Importe enlaces o añada una suscripción abajo.
+sources.source = Origen
+sources.refresh = Actualizar
+sources.delete = Eliminar
+sources.server = Servidor
+sources.address = Dirección
+sources.select = Guardar selección
+sources.automatic = Automático
+sources.lastUpdate = Actualizado: {0}
+sources.missingSelection = El servidor guardado no está en esta lista. Elija un servidor o Automático.
+sources.importTitle = Importar enlaces de servidores
+sources.importHelp = Pegue enlaces VLESS, Trojan o Hysteria2, uno por línea. Las credenciales se guardan en archivos privados.
+sources.import = Importar
+sources.subscriptionTitle = Añadir o renombrar una suscripción
+sources.label = Nombre (opcional)
+sources.url = URL HTTPS de suscripción
+sources.saveHelp = Guardar almacena la URL localmente. Actualizar descarga usando su conexión actual; si falla, conserva la última lista válida.
+sources.refreshing = Actualizando suscripción...
+sources.manual = Servidores importados
+sources.subscription = Suscripción {0}
+sources.imported = Se importaron {0} servidores; se omitieron {1} entradas.
+sources.saved = Suscripción guardada. Pulse Actualizar para descargar sus servidores.
+sources.updated = Se actualizaron {0} servidores; se omitieron {1} entradas.
+sources.deleted = Eliminado.
+sources.selectionSaved = Selección de servidor guardada.
+sources.cancelled = Actualización cancelada.
+sources.deleteTitle = ¿Eliminar suscripción?
+sources.deleteHelp = ¿Eliminar esta suscripción y su lista de servidores descargada?
+sources.networkError = La descarga falló. La lista guardada sigue disponible.
+sources.tlsError = No se pudo verificar el certificado TLS de la suscripción.
+sources.timeoutError = La solicitud de suscripción agotó el tiempo de espera.
+sources.sizeError = La suscripción supera el límite de tamaño.
+sources.busyError = Esta suscripción ya se está actualizando.
+sources.formatError = No se encontraron enlaces compatibles. Se conservó la lista guardada.
+sources.httpError = La suscripción devolvió HTTP {0}. Se conservó la lista guardada.
+sources.invalid = Campo no válido: {0}. Revise la configuración introducida.
+sources.storageError = No se pudieron leer o guardar los datos privados de servidores. Revise los permisos de la carpeta de datos.
+
+# WARP+ account management (Windows Zarp MIT strings, macOS account lifecycle)
+warpPlus.title = WARP+
+warpPlus.hint = Usa tu suscripción WARP+. Copia la clave en Ajustes > Cuenta de la app 1.1.1.1 del teléfono. Conéctate con Zarp como siempre: la estrategia zapret2 elegida también se aplica a WARP+.
+warpPlus.account = Cuenta: {0}
+warpPlus.key = Clave de licencia WARP+
+warpPlus.privacy = La clave se envía a Cloudflare para su cuenta de Zarp. Zarp no la guarda ni la registra.
+warpPlus.invalid = Usa una clave de tres grupos de ocho letras o dígitos separados por guiones.
+warpPlus.loading = Consultando la cuenta WARP...
+warpPlus.applying = Aplicando la licencia WARP+...
+warpPlus.applied = WARP+ está vinculado a este dispositivo. Vuelve a conectarte con Zarp para usar la cuenta actualizada.
+warpPlus.unconfirmed = WARP aceptó la clave, pero no se pudo confirmar WARP+. Actualiza la cuenta y comprueba tu suscripción antes de volver a conectarte.
+warpPlus.applyFailed = No se pudo aplicar la clave. Comprueba la suscripción, el límite de dispositivos y el acceso a Cloudflare, y vuelve a intentarlo.
+warpPlus.accountFailed = No se pudo consultar la cuenta. Comprueba el acceso a Cloudflare e inténtalo de nuevo.
+warpPlus.timeout = WARP no respondió a tiempo. La clave puede haberse aplicado; actualiza la cuenta antes de volver a intentarlo.
+warpPlus.busy = Espera a que termine la operación actual y vuelve a intentarlo.
+warpPlus.noWarp = Aún no hay una cuenta WARP de Zarp. Aplique una clave para aceptar los términos y registrarse sin iniciar un túnel.
+warpPlus.apply = Aplicar clave
+warpPlus.refresh = Actualizar cuenta
+warpPlus.unknown = Desconocida o sin registrar
+warpPlus.free = WARP (gratis)
+warpPlus.plus = WARP+
+warpPlus.unlimited = WARP+ Unlimited
+warpPlus.zerotrust = Cloudflare Zero Trust
+warpPlus.updateDaemon = WARP+ no está disponible temporalmente. Inténtalo más tarde.
+sources.cached = Falló la actualización. Se usa la última lista guardada.
+sources.unavailable = No hay pares compatibles para la fuente o el servidor seleccionado.
+sources.refreshFailed = No se pudo actualizar la suscripción seleccionada.
+sources.subtitle = Túnel de servidor + zapret
+sources.hintFirstRun = Pulsa para buscar un servidor y una estrategia que funcionen y conectar el túnel del servidor mediante zapret
+settings.title = Configuración de Zarp
+settings.connection = Servidor y puntos de conexión
+settings.close = Cerrar
+strategy.countrySelection = Países: {0}
+strategy.countryRU = Rusia
+strategy.countryIR = Irán
+strategy.countryCN = China
+
+# Server connection and application routing
+connection.useServer = Usar un servidor propio en lugar de WARP
+connection.serverHelp = Pega enlaces VLESS, Trojan o Hysteria2, uno por línea, o una URL HTTPS de suscripción. Zarp busca una pareja compatible de servidor y estrategia zapret2.
+connection.savedSource = Lista guardada
+connection.newServer = Nuevo servidor o suscripción
+connection.serverInput = Enlaces o URL de suscripción
+connection.savedServers = Servidores guardados: {0}. Deja el campo vacío para conservar esta lista.
+connection.ipv6 = IPv6 a través del servidor
+connection.dns = Servidor DNS
+connection.serverSaveHelp = Al guardar se actualiza la suscripción o se reemplaza la lista importada.
+connection.saving = Guardando y cargando servidores...
+connection.nextConnection = Los cambios se aplican en la próxima conexión.
+connection.noServer = Introduce un enlace o URL de suscripción, o elige una lista guardada.
+routing.invalid = Ajustes de aplicaciones, IPv6 o DNS no válidos. Revisa las aplicaciones y la IP del DNS.
+routing.fullTunnelRequired = El enrutamiento por aplicación requiere capturar todo el tráfico. Actívalo en ajustes.
+apps.title = Enrutamiento por aplicación
+apps.enable = Enrutar aplicaciones de forma selectiva
+apps.help = Selecciona aplicaciones o ejecutables. Un .app incluye sus procesos auxiliares internos; añade los externos aparte. Guardar activa la captura para clasificar tráfico. En el modo de aplicaciones seleccionadas, las demás salen directamente.
+apps.serverOnly = Estas reglas se aplican al servidor propio. El modo WARP no aplica reglas por aplicación.
+apps.search = Buscar por nombre o ruta
+apps.application = Aplicación
+apps.path = Ruta
+apps.selected = Aplicaciones seleccionadas: {0}
+apps.dnsHelp = Con la sustitución DNS, las consultas del sistema usan el servidor. Al filtrar aplicaciones se bloquean los flujos de propietario desconocido.
+apps.add = Añadir aplicación...
+apps.modeAll = Todas las aplicaciones
+apps.modeInclude = Solo las seleccionadas
+apps.modeExclude = Todas excepto las seleccionadas
+apps.choose = Selecciona al menos una aplicación.
+opt.routeAllServer = Aplicar la conexión al tráfico del Mac
+opt.overrideDNSServer = Usar el DNS del servidor configurado
+
+# Account setup and protected API recovery
+err.accountUncertain = Cloudflare puede haber creado la cuenta, pero se perdió la respuesta. Se pausó el registro automático para evitar duplicados. Conserva los archivos de la cuenta.
+err.accountUnavailable = No se pudieron leer los datos existentes de forma segura. Revisa los permisos de la carpeta. Zarp no reemplazará la cuenta.
+err.accountRateLimited = Cloudflare limitó las solicitudes de registro. Espera antes de reintentar. El registro pendiente se conserva.
+err.accountCertificate = No se pudo verificar el certificado de la API de Cloudflare. Registro detenido.
+err.accountNetwork = No se pudo acceder a la API de cuentas con las estrategias TLS disponibles. Se conserva el registro pendiente.
+err.accountRejected = La API de cuentas rechazó la solicitud o devolvió datos inválidos. Revisa la cuenta y actualiza su estado.
+err.licenseUncertain = La solicitud de licencia puede haber llegado a Cloudflare. Actualiza la cuenta antes de volver a enviar la clave.
+detail.registering = Registrando WARP con protección de la API...
+
+
+connection.preparing = Preparando la conexión...
+connection.permissionRequired = Permite Zarp en los ajustes de macOS para continuar.
+connection.prepareFailed = No se pudo preparar la conexión. Intenta conectarte de nuevo.
+connection.moveToApplications = Mueve Zarp a Aplicaciones y vuelve a abrirlo.
+
+log.appStarted = Zarp {0} iniciado.
+log.connectionReplacing = Actualizando el componente de conexión...
+log.connectionRegistering = Registrando el componente de conexión...
+log.connectionWaiting = Esperando a que se inicie el componente de conexión...
+log.connectionReady = Preparación de la conexión completada.
+log.connectionPreparationFailed = Error al preparar la conexión: {0}
+
+detail.verifying = Comprobando la estabilidad de la conexión...
+log.recoveryAlternatives = La conexión es inestable. Comprobando otras estrategias.
+log.recoveryCandidate = Comprobando otra estrategia: {0}
+log.networkChanged = La red cambió. Los resultados de la red anterior deben comprobarse de nuevo.
+detail.networkChanged = La red cambió durante la comprobación. Vuelve a conectarte.
+result.unstable = La conexión se interrumpió poco después de la comprobación
+err.peerKeyMismatch = La clave del servidor {0} no coincide con la clave de confianza de WARP.
+strategy.required = Se requiere una estrategia externa de zapret. Las conexiones WARP directas están desactivadas.

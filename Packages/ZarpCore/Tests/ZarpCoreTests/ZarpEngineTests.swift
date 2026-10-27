@@ -71,6 +71,7 @@ private final class ScriptedConnectionProvider: WarpConnectionProvider, @uncheck
     enum Outcome {
         case ok(connectMs: Int)
         case fail(timedOut: Bool = false)
+        case error(WarpConnectionError)
     }
 
     private let lock = NSLock()
@@ -89,6 +90,7 @@ private final class ScriptedConnectionProvider: WarpConnectionProvider, @uncheck
     /// then throw `CancellationError` like a real cancellation-aware backend.
     var openHangsUntilCancelled = false
     var openWarnings: [String] = []
+    var fixedEndpoint: String?
 
     /// What `connectionSnapshot()` answers; swap it between calls to simulate the backend's state
     /// changing underneath the engine.
@@ -119,7 +121,7 @@ private final class ScriptedConnectionProvider: WarpConnectionProvider, @uncheck
         switch outcome {
         case .ok(let ms):
             return lock.withLock {
-                let handle = FakeHandle(id: "h\(nextHandleId)", connectMs: ms, endpoint: endpoint ?? "162.159.198.1:443",
+                let handle = FakeHandle(id: "h\(nextHandleId)", connectMs: ms, endpoint: fixedEndpoint ?? Self.actualEndpoint(endpoint),
                                         warnings: openWarnings) { [weak self] id in
                     self?.lock.withLock { self?.events.append("close:\(id)") }
                 }
@@ -129,7 +131,16 @@ private final class ScriptedConnectionProvider: WarpConnectionProvider, @uncheck
             }
         case .fail(let timedOut):
             throw WarpConnectionError("scripted failure", timedOut: timedOut)
+        case .error(let error):
+            throw error
         }
+    }
+
+    private static func actualEndpoint(_ value: String?) -> String {
+        guard let value else { return "162.159.198.1:443" }
+        if value.hasPrefix("custom:") { return String(value.dropFirst(7)) }
+        if value.hasPrefix("isolated-"), let n = Int(value.dropFirst(9)) { return "162.159.198.\(n % 2 + 1):443" }
+        return value
     }
 
     func connectionSnapshot() async throws -> ConnectionSnapshot {
@@ -157,10 +168,15 @@ private final class ScriptedProbe: WarpProbe, @unchecked Sendable {
     var result: Result<WarpMeasurement, Error> = .success(.ok(pingMs: 50, warp: "on"))
     private let lock = NSLock()
     private(set) var measuredHandleIds: [String] = []
+    var gateOnMeasurement: (Int, OneShotGate)?
+    var outcomes: [Int: WarpMeasurement] = [:]
+    var failures: [Int: WarpConnectionError] = [:]
 
     func measure(connection: WarpConnectionHandle, samples: Int) async throws -> WarpMeasurement {
         lock.withLock { measuredHandleIds.append(connection.id) }
-        return try result.get()
+        if let (count, gate) = gateOnMeasurement, measuredHandleIds.count == count { await gate.wait() }
+        if let error = failures[measuredHandleIds.count] { throw error }
+        return try outcomes[measuredHandleIds.count] ?? result.get()
     }
 }
 
@@ -178,6 +194,8 @@ final class ZarpEngineTests: XCTestCase {
         log: LogBus = LogBus(),
         store: InMemorySettingsStore? = nil,
         customStore: InMemoryCustomStrategyStore = InMemoryCustomStrategyStore(),
+        timing: EngineTiming = .immediate,
+        backoff: [Double] = [0],
         settings: AppSettings = {
             var s = AppSettings(); s.stopAfterWorking = 1; return s
         }()
@@ -190,7 +208,7 @@ final class ZarpEngineTests: XCTestCase {
             network: network,
             log: log,
             localization: Localization(tables: ["en": Localization.parseTable(Self.minimalEnglish)]),
-            reconnectBackoff: [0]
+            reconnectBackoff: backoff, timing: timing
         )
     }
 
@@ -200,6 +218,7 @@ final class ZarpEngineTests: XCTestCase {
     private static let minimalEnglish = """
     detail.strategy = Strategy: {0}
     detail.cancelled = Cancelled
+    err.peerKeyMismatch = Server key mismatch at {0}. This endpoint could not be verified.
     """
 
     private func waitUntil(_ what: String, timeout: TimeInterval = 5, _ condition: @escaping () async -> Bool) async {
@@ -213,6 +232,216 @@ final class ZarpEngineTests: XCTestCase {
     private func logText(_ log: LogBus) -> String { log.snapshot().map(\.text).joined(separator: "\n") }
 
     // MARK: - Scan and connect
+
+    func testRemovedPlainWarpSelectionAndResultsCannotReturnAfterRestart() async throws {
+        let warpSource = try ConnectionSource(kind: .warp).id
+        let otherSource = "source-v1-" + String(repeating: "b", count: 64)
+        let pair = "split@server-v1-" + String(repeating: "c", count: 64)
+        let otherKey = otherSource + "|" + pair
+        var settings = AppSettings()
+        settings.selectedStrategyId = "direct"
+        settings.sourceSelections = [warpSource: "direct-h2", otherSource: pair]
+        settings.results["direct"] = TestResult(strategyId: "direct", ok: true, confirmed: true)
+        settings.results["old-network-plain"] = TestResult(strategyId: "direct-h2", ok: true, confirmed: true,
+                                                          networkIdentity: "older-network")
+        settings.results[otherKey] = TestResult(strategyId: pair, ok: true, confirmed: true)
+        let store = InMemorySettingsStore(settings)
+        let provider = ScriptedConnectionProvider()
+        let engine = makeEngine(connections: provider, store: store)
+        await engine.load()
+        let selected = await engine.selected
+        let catalog = await engine.eligibleStrategies
+        XCTAssertNil(selected)
+        XCTAssertTrue(catalog.allSatisfy { !$0.plan.isDirect })
+        let saved = store.load()
+        XCTAssertNil(saved.selectedStrategyId)
+        XCTAssertNil(saved.sourceSelections[warpSource])
+        XCTAssertNil(saved.results["direct"])
+        XCTAssertNil(saved.results["old-network-plain"])
+        XCTAssertEqual(saved.sourceSelections[otherSource], pair)
+        XCTAssertEqual(saved.results[otherKey]?.strategyId, pair)
+        XCTAssertTrue(provider.calls.isEmpty)
+    }
+
+    func testCustomEndpointCacheSurvivesRestartButRejectsAnAddressOutsideItsBoundList() async {
+        var settings = AppSettings()
+        settings.warpEndpoints = ["162.159.198.1:443"]
+        let store = InMemorySettingsStore(settings)
+        let engine = makeEngine(connections: ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]]), store: store)
+        await engine.load()
+        _ = await engine.testStrategies([StrategyCatalog.builtIn[0]])
+        await engine.waitUntilIdle()
+        let restarted = makeEngine(connections: ScriptedConnectionProvider(), store: store)
+        await restarted.load()
+        let cached = await restarted.results["warp-q-google6"]
+        XCTAssertEqual(cached?.confirmed, true)
+        var altered = store.load()
+        altered.results["warp-q-google6"]?.endpoint = "162.159.198.2:443"
+        store.save(altered)
+        await restarted.load()
+        let rejected = await restarted.results["warp-q-google6"]
+        XCTAssertNil(rejected)
+    }
+
+
+    func testRepeatedH2AddressIsNotIndependentEvenWithUniqueIsolationTokens() async {
+        let provider = ScriptedConnectionProvider(["warp-t-split-host": [.ok(connectMs: 100)]])
+        provider.fixedEndpoint = "162.159.198.2:443"
+        let engine = makeEngine(connections: provider)
+        await engine.load()
+        let strategy = StrategyCatalog.builtIn.first { $0.id == "warp-t-split-host" }!
+        _ = await engine.testStrategies([strategy])
+        await engine.waitUntilIdle()
+        XCTAssertNotEqual(provider.calls[0].endpoint, provider.calls[1].endpoint)
+        let result = await engine.results[strategy.id]
+        XCTAssertEqual(result?.confirmed, true)
+        XCTAssertEqual(result?.independent, false)
+        XCTAssertEqual(result?.endpointReused, true)
+    }
+
+
+    func testSingleCustomEndpointConfirmsWithoutIndependenceAndIsPinnedForConnect() async {
+        var settings = AppSettings()
+        settings.warpEndpoints = ["162.159.198.1:8443"]
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        _ = await engine.testStrategies([StrategyCatalog.builtIn[0]])
+        await engine.waitUntilIdle()
+        let result = await engine.results["warp-q-google6"]
+        XCTAssertEqual(result?.confirmed, true)
+        XCTAssertEqual(result?.independent, false)
+        XCTAssertEqual(result?.endpointReused, true)
+        XCTAssertEqual(provider.calls.map(\.endpoint), Array(repeating: "custom:162.159.198.1:8443", count: 3))
+    }
+
+    func testCustomListRotatesAndChangingItInvalidatesSavedResults() async {
+        var settings = AppSettings()
+        settings.warpEndpoints = ["162.159.198.1:443", "[2606:4700::1]:443"]
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        _ = await engine.testStrategies([StrategyCatalog.builtIn[0]])
+        await engine.waitUntilIdle()
+        let result = await engine.results["warp-q-google6"]
+        XCTAssertEqual(result?.independent, true)
+        XCTAssertEqual(provider.calls.map(\.endpoint), ["custom:162.159.198.1:443", "custom:[2606:4700::1]:443", "custom:[2606:4700::1]:443"])
+        settings.warpEndpoints = ["162.159.198.2:443"]
+        await engine.updateSettings(settings)
+        let invalidated = await engine.results
+        XCTAssertTrue(invalidated.isEmpty)
+    }
+
+    func testInvalidStoredEndpointListRefusesInsteadOfDefaulting() async {
+        var settings = AppSettings()
+        settings.warpEndpoints = ["not-an-address"]
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        _ = await engine.connect()
+        await engine.waitUntilIdle()
+        XCTAssertTrue(provider.calls.isEmpty)
+        let detail = await engine.detail
+        XCTAssertEqual(detail.key, "err.endpointList")
+    }
+
+
+    func testQuickScanContinuesPastFailedRechecksUntilThreeConfirmations() async {
+        var settings = AppSettings()
+        settings.stopAfterWorking = 3
+        let provider = ScriptedConnectionProvider([
+            "warp-q-google6": [.ok(connectMs: 100), .fail()],
+            "warp-q-google3": [.ok(connectMs: 100), .fail()],
+            "warp-q-vk6": [.ok(connectMs: 100)],
+            "warp-q-google-vk": [.ok(connectMs: 120)],
+            "warp-q-google10": [.ok(connectMs: 140)],
+        ])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        _ = await engine.search(full: false)
+        await engine.waitUntilIdle()
+        let results = await engine.results
+        XCTAssertEqual(results.values.filter(\.confirmed).count, 3)
+        XCTAssertTrue(provider.openedIds.contains("warp-q-google10"))
+        XCTAssertFalse(provider.openedIds.contains("warp-q-google11"))
+        XCTAssertEqual(results["warp-q-google6"]?.rechecked, true)
+    }
+
+    func testCountryFilterAppliesToSavedSelectionFallbackAndSelectedTestsWithoutErasingHistory() async {
+        var settings = AppSettings()
+        settings.strategyCountries = "cn"
+        settings.selectedStrategyId = "warp-q-vk6"
+        settings.results["warp-q-vk6"] = TestResult(strategyId: "warp-q-vk6", ok: true, confirmed: true)
+        settings.results["warp-q-google6"] = TestResult(strategyId: "warp-q-google6", ok: true, confirmed: true)
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        let hidden = StrategyCatalog.builtIn.first { $0.id == "warp-q-vk6" }!
+        let testedHidden = await engine.testStrategies([hidden])
+        let usedHidden = await engine.use(hidden)
+        XCTAssertFalse(testedHidden)
+        XCTAssertFalse(usedHidden)
+        _ = await engine.connect()
+        await engine.waitUntilIdle()
+        XCTAssertEqual(provider.openedIds, ["warp-q-google6"])
+        let history = await engine.results
+        XCTAssertTrue(history[hidden.id]?.confirmed == true)
+    }
+
+    func testSelectedFailureDoesNotApplyUnrelatedSavedSuccess() async {
+        var settings = AppSettings()
+        settings.results["warp-q-vk6"] = TestResult(strategyId: "warp-q-vk6", ok: true, confirmed: true)
+        let provider = ScriptedConnectionProvider(["warp-q-vk6": [.ok(connectMs: 100)]])
+        let engine = makeEngine(connections: provider, settings: settings)
+        await engine.load()
+        let strategy = StrategyCatalog.builtIn.first { $0.id == "warp-q-google6" }!
+        _ = await engine.testStrategies([strategy])
+        await engine.waitUntilIdle()
+        XCTAssertEqual(provider.openedIds, [strategy.id])
+        let state = await engine.state
+        XCTAssertEqual(state, .idle)
+    }
+
+    func testLegacyCustomSelectionMigratesOnlyWhenUnambiguousAndDoesNotCertifyUnknownArguments() async {
+        var settings = AppSettings()
+        settings.selectedStrategyId = "custom-same"
+        settings.results["custom-same"] = TestResult(strategyId: "custom-same", ok: true, confirmed: true)
+        let line = "Same | h3 | --payload=quic_initial --lua-desync=fake:blob=quic_google:repeats=3"
+        let engine = makeEngine(connections: ScriptedConnectionProvider(),
+                                customStore: InMemoryCustomStrategyStore(line), settings: settings)
+        await engine.load()
+        let selected = await engine.selectedStrategyId
+        let results = await engine.results
+        XCTAssertEqual(selected, CustomStrategyFile.parse(line)[0].id)
+        XCTAssertTrue(results.isEmpty)
+        let ambiguous = makeEngine(connections: ScriptedConnectionProvider(),
+                                   customStore: InMemoryCustomStrategyStore(line + "\n" + line.replacingOccurrences(of: "repeats=3", with: "repeats=6")), settings: settings)
+        await ambiguous.load()
+        let ambiguousSelection = await ambiguous.selectedStrategyId
+        XCTAssertNil(ambiguousSelection)
+    }
+
+    func testCancelDuringRecheckPreservesPriorConfirmedResult() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let probe = ScriptedProbe()
+        let gate = OneShotGate()
+        var settings = AppSettings()
+        let prior = TestResult(strategyId: "warp-q-google6", ok: true, connectMs: 300, pingMs: 20, confirmed: true,
+                               configurationFingerprint: StrategyCatalog.builtIn[0].configurationFingerprint)
+        settings.results[prior.strategyId] = prior
+        let engine = makeEngine(connections: provider, probe: probe, settings: settings)
+        await engine.load()
+        probe.gateOnMeasurement = (2, gate)
+        _ = await engine.testStrategies([StrategyCatalog.builtIn[0]])
+        await gate.waitUntilArrived()
+        await engine.cancel()
+        await gate.open()
+        await engine.waitUntilIdle()
+        let preserved = await engine.results[prior.strategyId]
+        XCTAssertEqual(preserved, prior)
+        XCTAssertTrue(provider.handles.allSatisfy { $0.closeCount == 1 })
+    }
+
 
     func testQuickScanStopsAfterFirstWorkingAndConnectsWithIt() async {
         // First in the built-in catalog (see StrategyCatalogTests), scripted to succeed on all
@@ -245,7 +474,7 @@ final class ZarpEngineTests: XCTestCase {
 
         // The daemon maps each token onto a different endpoint, so a test and the independent
         // re-check right after it never share one; the persistent connection takes the account's.
-        XCTAssertEqual(provider.calls.map(\.endpoint), ["isolated-0", "isolated-1", nil])
+        XCTAssertEqual(provider.calls.map(\.endpoint), ["isolated-0", "isolated-1", "162.159.198.2:443"])
         XCTAssertEqual(provider.calls.map(\.persistent), [false, false, true])
         XCTAssertEqual(provider.calls[0].routing, .testRouteOnly)
         XCTAssertEqual(provider.calls[1].routing, .testRouteOnly)
@@ -378,7 +607,7 @@ final class ZarpEngineTests: XCTestCase {
         let provider = ScriptedConnectionProvider([:])
         let engine = makeEngine(connections: provider)
         await engine.load()
-        let all = await engine.strategies
+        let all = StrategyCatalog.unavailable
         let unsupported = all.filter { $0.unsupportedReason != nil }
         XCTAssertEqual(Set(unsupported.map(\.id)), [
             "warp-q-google-bad", "warp-t-google-md5", "warp-t-seqovl", "warp-t-vk-seq", "warp-t-hostfake",
@@ -391,8 +620,7 @@ final class ZarpEngineTests: XCTestCase {
         XCTAssertTrue(provider.openedIds.isEmpty, "unsupported strategies must not open connections, got \(provider.openedIds)")
         let results = await engine.results
         for s in unsupported {
-            XCTAssertEqual(results[s.id]?.ok, false, s.id)
-            XCTAssertNotNil(results[s.id]?.errorKey, "\(s.id) should carry the reason it is unavailable")
+            XCTAssertNil(results[s.id], "historical unavailable profiles are outside the primary scan")
         }
     }
 
@@ -419,7 +647,9 @@ final class ZarpEngineTests: XCTestCase {
         let provider = ScriptedConnectionProvider([:])
         let engine = makeEngine(connections: provider)
         await engine.load()
-        let strategy = await engine.strategies.first { $0.id == "warp-t-seqovl" }!
+        let custom = "Unsupported | h2 | --payload=tls_client_hello --lua-desync=multisplit:pos=2:seqovl=681"
+        _ = try? await engine.saveCustomStrategies(custom)
+        let strategy = await engine.strategies.last!
         _ = await engine.use(strategy)
         await engine.waitUntilIdle()
         let detail = await engine.detail
@@ -438,11 +668,65 @@ final class ZarpEngineTests: XCTestCase {
         _ = await engine.search(full: true)
         await engine.waitUntilIdle()
         let all = await engine.strategies
-        let supportedIds = Set(all.filter { $0.unsupportedReason == nil }.map(\.id))
+        let supportedIds = Set(all.filter { $0.unsupportedReason == nil && $0.requiresDesync }.map(\.id))
         XCTAssertEqual(Set(provider.openedIds), supportedIds)
     }
 
     // MARK: - Leaks and ordering
+
+    func testTrustFailurePreservesResolvedEndpointAndPhase() async {
+        let context = ConnectionFailureContext(endpoint: "162.159.198.2:443", transport: "masqueH2", phase: "tls", strategyId: "warp-t-split")
+        let error = WarpConnectionError("remote endpoint has a different public key", code: "peer_key_mismatch", connection: context)
+        let provider = ScriptedConnectionProvider(["warp-t-split": [.error(error)]])
+        let log = LogBus()
+        let engine = makeEngine(connections: provider, log: log)
+        await engine.load()
+        let strategy = StrategyCatalog.builtIn.first { $0.id == "warp-t-split" }!
+        _ = await engine.testStrategies([strategy])
+        await engine.waitUntilIdle()
+        let result = await engine.results[strategy.id]
+        XCTAssertEqual(result?.endpoint, context.endpoint)
+        XCTAssertEqual(result?.error, "Server key mismatch at 162.159.198.2:443. This endpoint could not be verified.")
+        XCTAssertTrue(logText(log).contains("phase=tls code=peer_key_mismatch"))
+        XCTAssertEqual(provider.calls.count, 1)
+        XCTAssertTrue(provider.handles.isEmpty)
+    }
+
+    func testDelayedResetReasonReachesScanResultAndClosesOwnedHandle() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 100)]])
+        let probe = ScriptedProbe()
+        let context = ConnectionFailureContext(endpoint: "162.159.198.2:443", transport: "masqueH3", phase: "traffic", connectionId: "h1")
+        probe.failures[2] = WarpConnectionError("connection #h1 ended: connect-ip read: received a stateless reset", code: "connection_lost", connection: context)
+        let engine = makeEngine(connections: provider, probe: probe)
+        await engine.load()
+        _ = await engine.testStrategies([StrategyCatalog.builtIn[0]])
+        await engine.waitUntilIdle()
+        let result = await engine.results["warp-q-google6"]
+        XCTAssertEqual(result?.ok, false)
+        XCTAssertTrue(result?.error?.contains("stateless reset") == true)
+        XCTAssertFalse(result?.error?.contains("no open connection") == true)
+        XCTAssertEqual(provider.handles.count, 1)
+        XCTAssertEqual(provider.handles[0].closeCount, 1)
+    }
+
+    func testOldH2PoolEvidenceCannotPinThePreviousHttp3Destination() async {
+        let strategy = StrategyCatalog.builtIn.first { $0.id == "warp-t-split" }!
+        let legacy = Strategy.fingerprint(["warp-config-v1", strategy.transport.rawValue, strategy.args])
+        for fingerprint in [nil, legacy] as [String?] {
+            var settings = AppSettings()
+            settings.results[strategy.id] = TestResult(strategyId: strategy.id, ok: true, confirmed: true,
+                endpoint: "162.159.198.1:443", configurationFingerprint: fingerprint)
+            let provider = ScriptedConnectionProvider([strategy.id: [.ok(connectMs: 100)]])
+            provider.fixedEndpoint = "162.159.198.2:443"
+            let engine = makeEngine(connections: provider, settings: settings)
+            await engine.load()
+            let cached = await engine.results[strategy.id]
+            XCTAssertNil(cached)
+            _ = await engine.use(strategy)
+            await engine.waitUntilIdle()
+            XCTAssertNil(provider.calls.first?.endpoint)
+        }
+    }
 
     func testAFailedMeasurementAfterOpenDoesNotLeaveTheConnectionOpen() async {
         // apply() opened a persistent connection, then the measurement call threw (the backend
@@ -576,7 +860,8 @@ final class ZarpEngineTests: XCTestCase {
 
     func testCancelledTestDoesNotOverwriteWhatWasAlreadyKnown() async {
         var settings = AppSettings()
-        let known = TestResult(strategyId: "warp-q-google6", ok: true, connectMs: 100, pingMs: 20, confirmed: true)
+        let known = TestResult(strategyId: "warp-q-google6", ok: true, connectMs: 100, pingMs: 20, confirmed: true,
+                               configurationFingerprint: StrategyCatalog.builtIn[0].configurationFingerprint)
         settings.results = ["warp-q-google6": known]
         let provider = ScriptedConnectionProvider()
         provider.openHangsUntilCancelled = true
@@ -872,7 +1157,8 @@ final class ZarpEngineTests: XCTestCase {
         _ = await engine.reconcileConnection()
         await engine.waitUntilIdle()
 
-        XCTAssertEqual(provider.openedIds.count, 1 + 3, "three automatic attempts, then stop")
+        XCTAssertEqual(provider.openedIds.filter { $0 == strategy.id }.count, 1 + 3)
+        XCTAssertLessThanOrEqual(provider.openedIds.count, 1 + 3 + 8, "retries and alternative candidates are bounded")
         let state = await engine.state
         XCTAssertEqual(state, .idle)
         let resultsAfter = await engine.results
@@ -894,8 +1180,10 @@ final class ZarpEngineTests: XCTestCase {
             _ = await engine.reconcileConnection()
             await engine.waitUntilIdle()
         }
-        // 1 manual connect + at most 3 automatic reconnect cycles per window.
-        XCTAssertEqual(provider.openedIds.count, 1 + 3)
+        // One immediate retry, then bounded alternatives. Short successes do not
+        // create a fresh retry episode or repeat the original pair indefinitely.
+        XCTAssertEqual(provider.openedIds.filter { $0 == strategy.id }.count, 2)
+        XCTAssertLessThanOrEqual(provider.openedIds.count, 1 + 1 + 8)
         XCTAssertTrue(logText(log).contains("log.reconnectGiveUp"))
     }
 
@@ -989,11 +1277,11 @@ final class ZarpEngineTests: XCTestCase {
         await engine.waitUntilIdle()
         let detail = await engine.detail
         XCTAssertEqual(detail.key, "detail.vpnOff")
-        XCTAssertEqual(seen.value, ["utun28"])
+        XCTAssertEqual(seen.value, [])
         XCTAssertTrue(provider.openedIds.isEmpty, "nothing may be tested through someone else's tunnel")
     }
 
-    func testAnotherVPNCanBeAcceptedOrIgnoredWithoutAHook() async {
+    func testAnotherVPNAlwaysRefusesAndPreservesSavedHistory() async {
         for hook in [true, false] {
             let provider = ScriptedConnectionProvider([:])
             let engine = makeEngine(connections: provider, network: FixedInspector(names: ["utun28"]))
@@ -1001,7 +1289,7 @@ final class ZarpEngineTests: XCTestCase {
             if hook { await engine.setHooks(EngineHooks(askContinueWithVPN: { _ in true })) }
             _ = await engine.search(full: false)
             await engine.waitUntilIdle()
-            XCTAssertFalse(provider.openedIds.isEmpty, "hook=\(hook): the scan should have gone ahead")
+            XCTAssertTrue(provider.openedIds.isEmpty, "foreign VPN must not be bypassed by a hook")
         }
     }
 
@@ -1093,7 +1381,7 @@ final class ZarpEngineTests: XCTestCase {
         """)
         XCTAssertEqual(skipped, ["this line is broken"])
         let ids = await engine.strategies.map(\.id)
-        XCTAssertTrue(ids.contains("custom-my-quic"))
+        XCTAssertTrue(ids.contains { $0.hasPrefix("custom-v2-") })
         XCTAssertEqual(custom.loadText().contains("My QUIC"), true, "the text must really be saved")
         let text = await engine.customStrategiesText()
         XCTAssertTrue(text.contains("My QUIC"))
@@ -1107,7 +1395,7 @@ final class ZarpEngineTests: XCTestCase {
         let engine = makeEngine(connections: ScriptedConnectionProvider(), customStore: custom, settings: settings)
         await engine.load()
         let selectedBefore = await engine.selectedStrategyId
-        XCTAssertEqual(selectedBefore, "custom-mine")
+        XCTAssertEqual(selectedBefore, CustomStrategyFile.parse(custom.loadText()).first?.id)
 
         try await engine.saveCustomStrategies("# nothing here any more\n")
 
@@ -1115,6 +1403,236 @@ final class ZarpEngineTests: XCTestCase {
         let selected = await engine.selectedStrategyId
         XCTAssertNil(results["custom-mine"])
         XCTAssertNil(selected)
+    }
+
+    func testPersistentConnectionRequiresSeparatedTrafficChecks() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let probe = ScriptedProbe(), waits = LockedBox<[Double]>([])
+        let timing = EngineTiming(sleep: { seconds in waits.set(waits.value + [seconds]) })
+        let engine = makeEngine(connections: provider, probe: probe, timing: timing)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        let state = await engine.state
+        XCTAssertEqual(state, .connected)
+        XCTAssertEqual(waits.value, [2, 2])
+        XCTAssertEqual(probe.measuredHandleIds, Array(repeating: provider.handles[0].id, count: 3))
+    }
+
+    func testAnInitialTrafficBurstCannotPublishADeadConnectionAsConnected() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let probe = ScriptedProbe()
+        probe.outcomes[2] = .noTraffic(lastError: "received a stateless reset")
+        let engine = makeEngine(connections: provider, probe: probe)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        let state = await engine.state
+        XCTAssertEqual(state, .idle)
+        XCTAssertEqual(provider.handles[0].closeCount, 1)
+        XCTAssertEqual(provider.calls.count, 1)
+    }
+
+    func testCancellingDuringStabilityWaitClosesTheOwnedHandle() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let gate = OneShotGate()
+        let timing = EngineTiming(sleep: { _ in await gate.wait(); try Task.checkCancellation() })
+        let engine = makeEngine(connections: provider, timing: timing)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0])
+        await gate.waitUntilArrived()
+        let pending = await engine.snapshot()
+        XCTAssertEqual(pending.state, .connecting)
+        XCTAssertEqual(pending.detail.key, "detail.verifying")
+        await engine.cancel()
+        await gate.open()
+        await engine.waitUntilIdle()
+        XCTAssertEqual(provider.handles[0].closeCount, 1)
+        let ended = await engine.snapshot()
+        XCTAssertEqual(ended.detail.key, "detail.cancelled")
+    }
+
+    func testQuickSearchContinuesAfterItsConfirmedCandidateFailsPersistentVerification() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)], "warp-t-split": [.ok(connectMs: 20)]])
+        let probe = ScriptedProbe()
+        probe.outcomes[6] = .noTraffic(lastError: "received a stateless reset")
+        let engine = makeEngine(connections: provider, probe: probe)
+        await engine.load()
+        _ = await engine.search(full: false); await engine.waitUntilIdle()
+        let snapshot = await engine.snapshot()
+        XCTAssertEqual(snapshot.state, .connected)
+        XCTAssertEqual(snapshot.selectedStrategyId, "warp-t-split")
+        XCTAssertEqual(snapshot.results["warp-q-google6"]?.ok, false)
+        XCTAssertFalse(provider.openedIds.contains("direct-h2"))
+    }
+
+    func testRapidLossRetainsBackoffAndPrefersVerifiedTLSAlternatives() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)], "warp-t-split": [.ok(connectMs: 20)]])
+        let waits = LockedBox<[Double]>([])
+        let timing = EngineTiming(sleep: { seconds in waits.set(waits.value + [seconds]) })
+        let engine = makeEngine(connections: provider, timing: timing, backoff: [2, 10, 30])
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        for _ in 0..<2 {
+            provider.snapshot = .success(ConnectionSnapshot(live: nil))
+            _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        }
+        let snapshot = await engine.snapshot()
+        XCTAssertEqual(snapshot.selectedStrategyId, "warp-t-split")
+        XCTAssertEqual(snapshot.state, .connected)
+        XCTAssertEqual(provider.openedIds, ["warp-q-google6", "warp-q-google6", "warp-t-split", "warp-t-split", "warp-t-split"])
+        XCTAssertTrue(waits.value.contains(10), "a momentary success must not reset the delay to two seconds")
+        XCTAssertEqual(Array(provider.events.suffix(5).prefix(4)), ["open:warp-t-split", "close:h3", "open:warp-t-split", "close:h4"])
+    }
+
+    func testAllBrieflySuccessfulAlternativesStillExhaustOneBoundedEpisode() async {
+        let scripts = Dictionary(uniqueKeysWithValues: StrategyCatalog.builtIn.map { ($0.id, [ScriptedConnectionProvider.Outcome.ok(connectMs: 10)]) })
+        let provider = ScriptedConnectionProvider(scripts)
+        let engine = makeEngine(connections: provider)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        for _ in 0..<14 {
+            provider.snapshot = .success(ConnectionSnapshot(live: nil))
+            _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        }
+        let state = await engine.state
+        XCTAssertEqual(state, .idle)
+        XCTAssertEqual(provider.openedIds.filter { $0 == "warp-q-google6" }.count, 2)
+        XCTAssertLessThanOrEqual(provider.calls.count, 1 + 1 + 8 * 3)
+        XCTAssertFalse(provider.openedIds.contains("direct"))
+        XCTAssertFalse(provider.openedIds.contains("direct-h2"))
+    }
+
+    func testRecoveryStopsBeforeOpeningAnythingThroughAForeignVPN() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)], "warp-t-split": [.ok(connectMs: 20)]])
+        let network = MutablePathInspector("wifi")
+        let engine = makeEngine(connections: provider, network: network)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        network.names.set(["utun99"])
+        provider.snapshot = .success(ConnectionSnapshot(live: nil))
+        _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        XCTAssertEqual(provider.calls.count, 1)
+        let snapshot = await engine.snapshot()
+        XCTAssertEqual(snapshot.detail.key, "detail.vpnOff")
+    }
+
+    func testPathChangeDuringScanDiscardsOldEvidenceAndRestartsOnce() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let network = MutablePathInspector("wifi")
+        let timing = EngineTiming(sleep: { _ in network.identity.set("hotspot") })
+        let engine = makeEngine(connections: provider, network: network, timing: timing)
+        await engine.load()
+        _ = await engine.search(full: false); await engine.waitUntilIdle()
+        let snapshot = await engine.snapshot()
+        XCTAssertEqual(snapshot.state, .connected)
+        XCTAssertEqual(provider.calls.count, 4)
+        XCTAssertEqual(provider.handles.first?.closeCount, 1)
+        XCTAssertEqual(snapshot.results["warp-q-google6"]?.networkIdentity, "hotspot")
+        XCTAssertEqual(snapshot.results["warp-q-google6"]?.confirmed, true)
+    }
+
+    func testRepeatedPathChangesCannotRestartAScanForever() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let network = MutablePathInspector("wifi")
+        let timing = EngineTiming(sleep: { _ in network.identity.set(network.identity.value == "wifi" ? "hotspot" : "wifi") })
+        let engine = makeEngine(connections: provider, network: network, timing: timing)
+        await engine.load()
+        _ = await engine.search(full: false); await engine.waitUntilIdle()
+        let snapshot = await engine.snapshot()
+        XCTAssertEqual(snapshot.state, .idle)
+        XCTAssertEqual(snapshot.detail.key, "detail.networkChanged")
+        XCTAssertTrue(snapshot.results.isEmpty)
+        XCTAssertEqual(provider.calls.count, 2)
+        XCTAssertTrue(provider.handles.allSatisfy { $0.closeCount == 1 })
+    }
+
+    func testOnlyAMatureConnectionStartsAFreshRecoveryEpisode() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)], "warp-t-split": [.ok(connectMs: 20)]])
+        let now = LockedBox(Date(timeIntervalSince1970: 1_000))
+        let timing = EngineTiming(now: { now.value }, sleep: { _ in try Task.checkCancellation() })
+        let engine = makeEngine(connections: provider, timing: timing)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        provider.snapshot = .success(ConnectionSnapshot(live: nil))
+        _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        now.set(now.value.addingTimeInterval(31))
+        _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        XCTAssertEqual(provider.openedIds, Array(repeating: "warp-q-google6", count: 3))
+        let state = await engine.state
+        XCTAssertEqual(state, .connected)
+    }
+
+    func testCancellingAnAlternativeCannotOpenTheNextCandidate() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10), .fail()], "warp-t-split": [.ok(connectMs: 20)]])
+        let gate = OneShotGate()
+        provider.gateForId = ("warp-t-split", gate)
+        let engine = makeEngine(connections: provider)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        provider.snapshot = .success(ConnectionSnapshot(live: nil))
+        _ = await engine.reconcileConnection()
+        await gate.waitUntilArrived()
+        await engine.cancel()
+        await gate.open()
+        await engine.waitUntilIdle()
+        XCTAssertEqual(provider.openedIds.suffix(1), ["warp-t-split"])
+        XCTAssertEqual(provider.handles.last?.closeCount, 1)
+        let detail = await engine.detail
+        XCTAssertEqual(detail.key, "detail.cancelled")
+    }
+
+    func testHeartbeatPathChangeClosesOnlyTheOwnedTunnelAndRechecksTheNewPath() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let network = MutablePathInspector("wifi")
+        let engine = makeEngine(connections: provider, network: network)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        network.identity.set("hotspot")
+        await engine.observeNetworkChange(); await engine.waitUntilIdle()
+        let state = await engine.state
+        XCTAssertEqual(state, .connected)
+        XCTAssertEqual(provider.calls.count, 2)
+        XCTAssertEqual(provider.handles[0].closeCount, 1)
+        XCTAssertEqual(provider.handles[1].closeCount, 0)
+    }
+
+    func testRecoveryDeadlineCannotBeExtendedByBackoff() async {
+        let provider = ScriptedConnectionProvider(["warp-q-google6": [.ok(connectMs: 10)]])
+        let now = LockedBox(Date(timeIntervalSince1970: 1_000))
+        let expiring = LockedBox(false)
+        let timing = EngineTiming(now: { now.value }, sleep: { _ in
+            if expiring.value { now.set(now.value.addingTimeInterval(181)) }
+        })
+        let engine = makeEngine(connections: provider, timing: timing)
+        await engine.load()
+        _ = await engine.use(StrategyCatalog.builtIn[0]); await engine.waitUntilIdle()
+        expiring.set(true)
+        provider.snapshot = .success(ConnectionSnapshot(live: nil))
+        _ = await engine.reconcileConnection(); await engine.waitUntilIdle()
+        XCTAssertEqual(provider.calls.count, 1)
+        let state = await engine.state
+        XCTAssertEqual(state, .idle)
+    }
+
+    func testSavedWifiEvidenceDoesNotPinOrCertifyTheHotspot() async {
+        let strategy = StrategyCatalog.builtIn[0]
+        var settings = AppSettings()
+        let cached = TestResult(strategyId: strategy.id, ok: true, confirmed: true, endpoint: "162.159.198.2:4500",
+                                configurationFingerprint: strategy.configurationFingerprint, networkIdentity: "wifi")
+        settings.results[strategy.id] = cached
+        let store = InMemorySettingsStore(settings)
+        let provider = ScriptedConnectionProvider([strategy.id: [.ok(connectMs: 10)]])
+        let network = MutablePathInspector("hotspot")
+        let engine = makeEngine(connections: provider, network: network, store: store)
+        await engine.load()
+        let before = await engine.results
+        XCTAssertTrue(before.isEmpty)
+        _ = await engine.use(strategy); await engine.waitUntilIdle()
+        XCTAssertNil(provider.calls.first?.endpoint)
+        network.identity.set("wifi")
+        let restored = makeEngine(connections: ScriptedConnectionProvider(), network: network, store: store)
+        await restored.load()
+        let prior = await restored.results[strategy.id]
+        XCTAssertEqual(prior, cached)
     }
 
     // MARK: - Snapshot
@@ -1156,4 +1674,12 @@ private struct FailingRegistrationCheck: WarpConnectionProvider {
     func connectionSnapshot() async throws -> ConnectionSnapshot { try await base.connectionSnapshot() }
     func isAccountRegistered() async throws -> Bool { throw WarpConnectionError("connect(/var/run/zarpd.sock): No such file or directory — is zarpd running?") }
     func registerAccount() async throws { try await base.registerAccount() }
+}
+
+private struct MutablePathInspector: NetworkInspector {
+    let identity: LockedBox<String?>
+    let names = LockedBox<[String]>([])
+    init(_ identity: String) { self.identity = LockedBox(identity) }
+    func connectionPathIdentity() -> String? { identity.value }
+    func foreignVPNInterfaceNames() -> [String] { names.value }
 }

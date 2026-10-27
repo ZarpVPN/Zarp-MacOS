@@ -46,6 +46,8 @@ targets:
       - package: ZarpCore
       - package: ZarpCore
         product: ZarpdIPC
+      - package: ZarpCore
+        product: ZarpSubscriptions
     postCompileScripts:
       - name: "Build and embed zarpd daemon"
         # `basedOnDependencyAnalysis: false` — always run, since we don't declare explicit
@@ -75,6 +77,18 @@ targets:
 
           cd "${SRCROOT}/zarpd"
 
+          # Download only if missing. Exact archive and binary pins are verified;
+          # this mode never launches an engine or changes network configuration.
+          python3 "${SRCROOT}/scripts/test-parity-backend-loopback.py" --engine sing-box --fetch-only
+          python3 "${SRCROOT}/scripts/test-parity-backend-loopback.py" --engine xray --fetch-only
+          mkdir -p "${DEST}/Resources/Backends/sing-box-1.13.14" "${DEST}/Resources/Backends/xray-26.9.30"
+          cp "${SRCROOT}/build/parity-backends/sing-box-1.13.14/sing-box" "${DEST}/Resources/Backends/sing-box-1.13.14/"
+          cp "${SRCROOT}/build/parity-backends/xray-26.9.30/xray" "${DEST}/Resources/Backends/xray-26.9.30/"
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:-${CODE_SIGN_IDENTITY:--}}"
+          go build -trimpath -o "${DEST}/MacOS/zarp-backend-guardian" ./cmd/parity-backend-guardian
+          codesign --force --sign "${IDENTITY}" --timestamp=none "${DEST}/MacOS/zarp-backend-guardian"
+          GUARDIAN_SHA="$(shasum -a 256 "${DEST}/MacOS/zarp-backend-guardian" | cut -d ' ' -f 1)"
+
           # The daemon's embedded Info.plist carries the app's version (a copy is stamped here so
           # the checked-in template never has to be edited), and the same version is compiled in as
           # main.version — the app compares it with its own to notice a stale daemon left running
@@ -89,10 +103,18 @@ targets:
           # The extldflags value is single-quoted so a build path containing spaces stays one
           # argument; -trimpath keeps the builder's directories out of the binary.
           go build -trimpath \
-            -ldflags="-linkmode external -extldflags '-Wl,-sectcreate,__TEXT,__info_plist,${INFO_PLIST}' -X main.version=${MARKETING_VERSION}" \
+            -ldflags="-linkmode external -extldflags '-Wl,-sectcreate,__TEXT,__info_plist,${INFO_PLIST}' -X main.version=${MARKETING_VERSION} -X main.backendGuardianDigest=${GUARDIAN_SHA}" \
             -o "${DEST}/MacOS/zarpd" ./cmd/zarpd
 
           cp "${SRCROOT}/zarpd/cmd/zarpd/io.github.zarp.mac.zarpd.plist" "${DEST}/Library/LaunchDaemons/"
+
+          # Debug registration must target this build, never an installed release.
+          if [[ "${CONFIGURATION}" == "Debug" ]]; then
+            DAEMON_PROGRAM="${DEST}/MacOS/zarpd"
+            DAEMON_LAUNCH_PLIST="${DEST}/Library/LaunchDaemons/io.github.zarp.mac.zarpd.plist"
+            /usr/libexec/PlistBuddy -c "Set :Program ${DAEMON_PROGRAM}" "${DAEMON_LAUNCH_PLIST}"
+            /usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 ${DAEMON_PROGRAM}" "${DAEMON_LAUNCH_PLIST}"
+          fi
 
           # Same identity Xcode is about to sign the app itself with — SMAppService requires the
           # daemon and the app to share a Team ID (docs/ARCHITECTURE.md §7).
@@ -102,8 +124,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.zarp.mac
         PRODUCT_NAME: Zarp
-        MARKETING_VERSION: "0.2.0"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "16"
         SWIFT_VERSION: "5.9"
         # Apple Silicon only (docs/ARCHITECTURE.md §1): the embedded zarpd
         # Go binary is arm64-only, so a universal app would ship an x86_64 slice with nothing to
@@ -119,6 +141,7 @@ targets:
       properties:
         CFBundleDisplayName: Zarp
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Shows in the Dock *and* the menu bar (MenuBarExtra), matching Windows Zarp's taskbar +
         # tray presence. Flip to true only if Zarp should become menu-bar-only.
         LSUIElement: false

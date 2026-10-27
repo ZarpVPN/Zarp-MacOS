@@ -1,0 +1,1459 @@
+{
+  "version": 1,
+  "provenance": "Synthetic vectors based on Windows 07406eb semantics. No Android implementation copied. macOS rejects insecure and remaining pending options explicitly; optional advanced fields preserve earlier schema 1 IDs.",
+  "imports": [
+    {
+      "name": "trojan-encoded-credential",
+      "link": "trojan://p%40ss%2Bword@proxy.example:443?sni=front.example#My%20server",
+      "profile": {
+        "label": "My server",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "p@ss+word"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "front.example"
+      },
+      "id": "server-v1-8a506771d42825377cff071bd31de4b1517c688ae4b798d3129646c6c39163ac"
+    },
+    {
+      "name": "password-colon-and-plus",
+      "link": "hysteria2://u:p+q@proxy.example:8443",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 8443,
+        "serverProtocol": "hysteria2",
+        "credential": {
+          "kind": "password",
+          "value": "u:p+q"
+        },
+        "transport": "quic",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-241711d442478f20ffa7a67064f99e2965d3a33f0dd98bcde7293b46bc07d9db"
+    },
+    {
+      "name": "hy2-default-port",
+      "link": "hy2://test-only-password@proxy.example/",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "hysteria2",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "quic",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-1257fb55ad11f43c561d6d2cd1d1334aae6bd8c317706933cab665ce7ce60674"
+    },
+    {
+      "name": "hy2-alias",
+      "link": "hysteria2://test-only-password@proxy.example:443",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "hysteria2",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "quic",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-1257fb55ad11f43c561d6d2cd1d1334aae6bd8c317706933cab665ce7ce60674"
+    },
+    {
+      "name": "vless-default-no-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:8080",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 8080,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "none",
+        "alpn": [],
+        "flow": "none"
+      },
+      "id": "server-v1-eb794b03749af46f66e493cb5782c62345f7d7b6893f634b59ed673a189060ba"
+    },
+    {
+      "name": "vless-ws",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=tls&type=ws&path=%2Fsocket&host=front.example&alpn=h2,http/1.1",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "ws",
+        "security": "tls",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "flow": "none",
+        "serverName": "proxy.example",
+        "path": "/socket",
+        "hostHeader": "front.example"
+      },
+      "id": "server-v1-3d5149f98a2b18f12382a711fb9e0267fcded0291e57ae35380195de28a64de2"
+    },
+    {
+      "name": "ws-default-path",
+      "link": "trojan://test-only-password@proxy.example:443?type=ws",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "ws",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example",
+        "path": "/"
+      },
+      "id": "server-v1-703d8c13c22a869c67e761243482cbaed72ba0d228b5d8e521c8e26783eab167"
+    },
+    {
+      "name": "grpc-service",
+      "link": "trojan://test-only-password@proxy.example:443?type=grpc&serviceName=tunnel",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "grpc",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example",
+        "serviceName": "tunnel"
+      },
+      "id": "server-v1-f23e9b7becb2eb9fa8a3e63566eae118854adae73697254a76238c79bd7667e0"
+    },
+    {
+      "name": "httpupgrade",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=tls&type=httpupgrade&path=/up&host=front.example",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "httpUpgrade",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example",
+        "path": "/up",
+        "hostHeader": "front.example"
+      },
+      "id": "server-v1-9fc7dc20eb9ee56c0d95a9d487de5e91aec32c4c1c0b92e5717634289d4e9fb2"
+    },
+    {
+      "name": "vless-vision-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=tls&flow=xtls-rprx-vision",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "vision",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-7d3c7e5e713517421bbd9d682a771fb2fbb5a7a1df3997eda087951d94ec5163"
+    },
+    {
+      "name": "ipv6-target",
+      "link": "trojan://test-only-password@[2001:db8::1]:8443?peer=front.example",
+      "profile": {
+        "label": "",
+        "host": "2001:db8::1",
+        "port": 8443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "front.example"
+      },
+      "id": "server-v1-31caa79b8d8b10a34d152a660c10c1513ced74954ad4bbe17cb2f931c3551240"
+    },
+    {
+      "name": "percent-decode-once",
+      "link": "trojan://test%2540only@proxy.example:443?allowInsecure=false",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test%40only"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-3561e37d018cffcb641167b40e7cd72fc39e93e2d2849ff44088be072b5054dd"
+    },
+    {
+      "name": "trim-and-label-controls",
+      "link": "  trojan://test-only-password@proxy.example:443#%20Test%0ALabel%20%20name%20  ",
+      "profile": {
+        "label": "TestLabel name",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-0d791f0588b92482e1522d13a52dbb16ed8e14feb9a390eb5e439b098257f33e"
+    },
+    {
+      "name": "unicode-credential",
+      "link": "trojan://test-%E2%98%83@proxy.example:443",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-☃"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-1a25be545e714832985dff5d7fdb4bedd4be112ac5016f46091bc68fb20dc15b"
+    },
+    {
+      "name": "malformed-label-is-presentation",
+      "link": "trojan://test-only-password@proxy.example:443#%GG",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "alpn": [],
+        "flow": "none",
+        "serverName": "proxy.example"
+      },
+      "id": "server-v1-0d791f0588b92482e1522d13a52dbb16ed8e14feb9a390eb5e439b098257f33e"
+    },
+    {
+      "name": "unknown",
+      "link": "trojan://test-only-secret@proxy.example:443?private-secret-key=1",
+      "errorField": "parameters"
+    },
+    {
+      "name": "duplicate-query",
+      "link": "trojan://test-only-secret@proxy.example:443?sni=a&sni=b",
+      "errorField": "query"
+    },
+    {
+      "name": "encoded-duplicate",
+      "link": "trojan://test-only-secret@proxy.example:443?sni=a&sn%69=b",
+      "errorField": "query"
+    },
+    {
+      "name": "ambiguous-alias",
+      "link": "trojan://test-only-secret@proxy.example:443?sni=a&peer=b",
+      "errorField": "serverName"
+    },
+    {
+      "name": "tls-disable",
+      "link": "trojan://test-only-secret@proxy.example:443?allowInsecure=1",
+      "errorField": "insecure"
+    },
+    {
+      "name": "bad-boolean",
+      "link": "trojan://test-only-secret@proxy.example:443?insecure=maybe",
+      "errorField": "insecure"
+    },
+    {
+      "name": "trojan-tls-fingerprint",
+      "link": "trojan://test-only-secret@proxy.example:443?fp=chrome",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "trojan",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-secret"
+        },
+        "transport": "tcp",
+        "security": "tls",
+        "serverName": "proxy.example",
+        "alpn": [],
+        "flow": "none",
+        "fingerprint": "chrome"
+      },
+      "id": "server-v1-1d172f2ef1d4e11fd4bd2898c9d648f1d7538b4f4bb02d74479728f0dd3e04bc"
+    },
+    {
+      "name": "ech-pending",
+      "link": "trojan://test-only-secret@proxy.example:443?ech=private-value",
+      "errorField": "ech"
+    },
+    {
+      "name": "obfs-inapplicable-to-trojan",
+      "link": "trojan://test-only-secret@proxy.example:443?obfs=salamander",
+      "errorField": "obfs"
+    },
+    {
+      "name": "password-pending",
+      "link": "trojan://test-only-secret@proxy.example:443?obfs-password=private-value",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "xhttp-unknown-mode",
+      "link": "trojan://test-only-secret@proxy.example:443?type=xhttp&mode=unknown",
+      "errorField": "modeOptions"
+    },
+    {
+      "name": "inapplicable-path",
+      "link": "trojan://test-only-secret@proxy.example:443?path=/ignored",
+      "errorField": "path"
+    },
+    {
+      "name": "inapplicable-host",
+      "link": "trojan://test-only-secret@proxy.example:443?host=front.example",
+      "errorField": "hostHeader"
+    },
+    {
+      "name": "inapplicable-service",
+      "link": "trojan://test-only-secret@proxy.example:443?serviceName=ignored",
+      "errorField": "serviceName"
+    },
+    {
+      "name": "bad-percent",
+      "link": "trojan://test-only-secret@proxy.example:443?sni=%GG",
+      "errorField": "query"
+    },
+    {
+      "name": "empty-alpn-element",
+      "link": "trojan://test-only-secret@proxy.example:443?alpn=h2,,h3",
+      "errorField": "alpn"
+    },
+    {
+      "name": "inapplicable-encryption",
+      "link": "trojan://test-only-secret@proxy.example:443?encryption=none",
+      "errorField": "encryption"
+    },
+    {
+      "name": "missing-port",
+      "link": "trojan://test-only-secret@proxy.example",
+      "errorField": "port"
+    },
+    {
+      "name": "empty-port",
+      "link": "hy2://test-only-secret@proxy.example:",
+      "errorField": "port"
+    },
+    {
+      "name": "bad-port",
+      "link": "trojan://test-only-secret@proxy.example:99999",
+      "errorField": "port"
+    },
+    {
+      "name": "raw-v6",
+      "link": "trojan://test-only-secret@2001:db8::1:443",
+      "errorField": "host"
+    },
+    {
+      "name": "zone",
+      "link": "trojan://test-only-secret@[fe80::1%en0]:443",
+      "errorField": "host"
+    },
+    {
+      "name": "bad-host",
+      "link": "trojan://test-only-secret@999.999.999.999:443",
+      "errorField": "host"
+    },
+    {
+      "name": "leading-zero-ip",
+      "link": "trojan://test-only-secret@127.0.0.01:443",
+      "errorField": "host"
+    },
+    {
+      "name": "bad-credential",
+      "link": "trojan://test%0Asecret@proxy.example:443",
+      "errorField": "credential"
+    },
+    {
+      "name": "invalid-utf8-credential",
+      "link": "trojan://test%FFsecret@proxy.example:443",
+      "errorField": "credential"
+    },
+    {
+      "name": "bad-escape-credential",
+      "link": "trojan://test%GGsecret@proxy.example:443",
+      "errorField": "credential"
+    },
+    {
+      "name": "bad-scheme",
+      "link": "https://test-only-secret@proxy.example:443",
+      "errorField": "scheme"
+    },
+    {
+      "name": "uri-path",
+      "link": "trojan://test-only-secret@proxy.example:443/ignored",
+      "errorField": "path"
+    },
+    {
+      "name": "bad-uuid",
+      "link": "vless://test-only-secret@proxy.example:443",
+      "errorField": "credential"
+    },
+    {
+      "name": "hy2-ws",
+      "link": "hy2://test-only-secret@proxy.example?type=ws",
+      "errorField": "transport"
+    },
+    {
+      "name": "vision-no-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?flow=xtls-rprx-vision",
+      "errorField": "flow"
+    },
+    {
+      "name": "reality-missing-key",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "no-tls-sni",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?sni=front.example",
+      "errorField": "security"
+    },
+    {
+      "name": "reality-default-chrome",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "reality",
+        "serverName": "front.example",
+        "alpn": [],
+        "flow": "none",
+        "fingerprint": "chrome",
+        "publicKey": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+      },
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "reality-explicit-chrome",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&fp=chrome",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "reality",
+        "serverName": "front.example",
+        "alpn": [],
+        "flow": "none",
+        "fingerprint": "chrome",
+        "publicKey": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+      },
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "reality-vision-short-id-alpn",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sid=0123456789abcdef&flow=xtls-rprx-vision&alpn=h2,http%2F1.1",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "reality",
+        "serverName": "front.example",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "flow": "vision",
+        "fingerprint": "chrome",
+        "publicKey": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+        "shortId": "0123456789abcdef"
+      },
+      "id": "server-v1-e7165ff4397c724ee66dd1384b8ad38de17f070d17c770245cfed96a65b9306e"
+    },
+    {
+      "name": "reality-empty-short-id",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sid=",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "vless",
+        "credential": {
+          "kind": "uuid",
+          "value": "11111111-2222-4333-a444-555555555555"
+        },
+        "transport": "tcp",
+        "security": "reality",
+        "serverName": "front.example",
+        "alpn": [],
+        "flow": "none",
+        "fingerprint": "chrome",
+        "publicKey": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+        "shortId": ""
+      },
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "hy2-salamander",
+      "link": "hy2://test-only-password@proxy.example?obfs=salamander&obfs-password=test-only-obfs-password",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "hysteria2",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "quic",
+        "security": "tls",
+        "serverName": "proxy.example",
+        "alpn": [],
+        "flow": "none",
+        "obfs": "salamander",
+        "obfsPassword": "test-only-obfs-password"
+      },
+      "id": "server-v1-408e1c684bdadfcd0e5b6c0a3f975eb87286eeda59caf2d650752433635c8663"
+    },
+    {
+      "name": "salamander-percent-secret",
+      "link": "hysteria2://test-only-password@proxy.example:443?obfs-password=test-only%3Ap%2Bq%40&obfs=salamander",
+      "profile": {
+        "label": "",
+        "host": "proxy.example",
+        "port": 443,
+        "serverProtocol": "hysteria2",
+        "credential": {
+          "kind": "password",
+          "value": "test-only-password"
+        },
+        "transport": "quic",
+        "security": "tls",
+        "serverName": "proxy.example",
+        "alpn": [],
+        "flow": "none",
+        "obfs": "salamander",
+        "obfsPassword": "test-only:p+q@"
+      },
+      "id": "server-v1-223f8dac1630a16172f20f378575d2de5b5c6c6a0eb2539ef71159acb52c21d8"
+    },
+    {
+      "name": "odd-short-id",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sid=abc",
+      "errorField": "shortId"
+    },
+    {
+      "name": "long-short-id",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sid=001122334455667788",
+      "errorField": "shortId"
+    },
+    {
+      "name": "invalid-short-id",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&sid=private-secret",
+      "errorField": "shortId"
+    },
+    {
+      "name": "reality-ws",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&type=ws",
+      "errorField": "security"
+    },
+    {
+      "name": "reality-grpc",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&type=grpc",
+      "errorField": "security"
+    },
+    {
+      "name": "invalid-fingerprint",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE&fp=private-secret",
+      "errorField": "fingerprint"
+    },
+    {
+      "name": "noncanonical-reality-key",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQF",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "padded-reality-key",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "reality-numeric-sni",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=reality&sni=127.0.0.1&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+      "errorField": "serverName"
+    },
+    {
+      "name": "reality-key-on-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=tls&sni=front.example&pbk=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "reality-short-id-on-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?security=tls&sid=abcd",
+      "errorField": "shortId"
+    },
+    {
+      "name": "salamander-no-password",
+      "link": "hy2://test-only-password@proxy.example?obfs=salamander",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "salamander-empty-password",
+      "link": "hy2://test-only-password@proxy.example?obfs=salamander&obfs-password=",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "salamander-unknown-type",
+      "link": "hy2://test-only-password@proxy.example?obfs=private-secret",
+      "errorField": "obfs"
+    },
+    {
+      "name": "salamander-stray-password",
+      "link": "hy2://test-only-password@proxy.example?obfs-password=private-secret",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "salamander-no-utls",
+      "link": "hy2://test-only-password@proxy.example?obfs=salamander&obfs-password=test-only&fp=chrome",
+      "errorField": "fingerprint"
+    },
+    {
+      "name": "fingerprint-without-tls",
+      "link": "vless://11111111-2222-4333-a444-555555555555@proxy.example:443?fp=chrome",
+      "errorField": "fingerprint"
+    }
+  ],
+  "profiles": [
+    {
+      "name": "import-profile-trojan-encoded-credential",
+      "json": "{\"label\":\"My server\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"p@ss+word\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"front.example\"}",
+      "id": "server-v1-8a506771d42825377cff071bd31de4b1517c688ae4b798d3129646c6c39163ac"
+    },
+    {
+      "name": "import-profile-password-colon-and-plus",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":8443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"u:p+q\"},\"transport\":\"quic\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-241711d442478f20ffa7a67064f99e2965d3a33f0dd98bcde7293b46bc07d9db"
+    },
+    {
+      "name": "import-profile-hy2-default-port",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-1257fb55ad11f43c561d6d2cd1d1334aae6bd8c317706933cab665ce7ce60674"
+    },
+    {
+      "name": "import-profile-hy2-alias",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-1257fb55ad11f43c561d6d2cd1d1334aae6bd8c317706933cab665ce7ce60674"
+    },
+    {
+      "name": "import-profile-vless-default-no-tls",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":8080,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"none\",\"alpn\":[],\"flow\":\"none\"}",
+      "id": "server-v1-eb794b03749af46f66e493cb5782c62345f7d7b6893f634b59ed673a189060ba"
+    },
+    {
+      "name": "import-profile-vless-ws",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"ws\",\"security\":\"tls\",\"alpn\":[\"h2\",\"http/1.1\"],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"path\":\"/socket\",\"hostHeader\":\"front.example\"}",
+      "id": "server-v1-3d5149f98a2b18f12382a711fb9e0267fcded0291e57ae35380195de28a64de2"
+    },
+    {
+      "name": "import-profile-ws-default-path",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"ws\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"path\":\"/\"}",
+      "id": "server-v1-703d8c13c22a869c67e761243482cbaed72ba0d228b5d8e521c8e26783eab167"
+    },
+    {
+      "name": "import-profile-grpc-service",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"grpc\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"serviceName\":\"tunnel\"}",
+      "id": "server-v1-f23e9b7becb2eb9fa8a3e63566eae118854adae73697254a76238c79bd7667e0"
+    },
+    {
+      "name": "import-profile-httpupgrade",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"httpUpgrade\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"path\":\"/up\",\"hostHeader\":\"front.example\"}",
+      "id": "server-v1-9fc7dc20eb9ee56c0d95a9d487de5e91aec32c4c1c0b92e5717634289d4e9fb2"
+    },
+    {
+      "name": "import-profile-vless-vision-tls",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"vision\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-7d3c7e5e713517421bbd9d682a771fb2fbb5a7a1df3997eda087951d94ec5163"
+    },
+    {
+      "name": "import-profile-ipv6-target",
+      "json": "{\"label\":\"\",\"host\":\"2001:db8::1\",\"port\":8443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"front.example\"}",
+      "id": "server-v1-31caa79b8d8b10a34d152a660c10c1513ced74954ad4bbe17cb2f931c3551240"
+    },
+    {
+      "name": "import-profile-percent-decode-once",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test%40only\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-3561e37d018cffcb641167b40e7cd72fc39e93e2d2849ff44088be072b5054dd"
+    },
+    {
+      "name": "import-profile-trim-and-label-controls",
+      "json": "{\"label\":\"TestLabel name\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-0d791f0588b92482e1522d13a52dbb16ed8e14feb9a390eb5e439b098257f33e"
+    },
+    {
+      "name": "import-profile-unicode-credential",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-☃\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-1a25be545e714832985dff5d7fdb4bedd4be112ac5016f46091bc68fb20dc15b"
+    },
+    {
+      "name": "import-profile-malformed-label-is-presentation",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "id": "server-v1-0d791f0588b92482e1522d13a52dbb16ed8e14feb9a390eb5e439b098257f33e"
+    },
+    {
+      "name": "invalid-host-15",
+      "json": "{\"label\":\"\",\"host\":\"999.999.999.999\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "host"
+    },
+    {
+      "name": "invalid-host-16",
+      "json": "{\"label\":\"\",\"host\":\"127.0.0.01\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "host"
+    },
+    {
+      "name": "invalid-host-17",
+      "json": "{\"label\":\"\",\"host\":\"::ffff:127.0.0.1\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "host"
+    },
+    {
+      "name": "invalid-port-18",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":0,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "port"
+    },
+    {
+      "name": "invalid-transport-19",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"private-secret\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "transport"
+    },
+    {
+      "name": "invalid-security-20",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"private-secret\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "security"
+    },
+    {
+      "name": "invalid-flow-21",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"private-secret\",\"serverName\":\"proxy.example\"}",
+      "errorField": "flow"
+    },
+    {
+      "name": "invalid-path-22",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"path\":\"/inapplicable\"}",
+      "errorField": "path"
+    },
+    {
+      "name": "invalid-serviceName-23",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"serviceName\":\"inapplicable\"}",
+      "errorField": "serviceName"
+    },
+    {
+      "name": "invalid-hostHeader-24",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"hostHeader\":\"inapplicable\"}",
+      "errorField": "hostHeader"
+    },
+    {
+      "name": "invalid-alpn-25",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[\"h2\",\"\"],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "alpn"
+    },
+    {
+      "name": "invalid-credential-26",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test\\nsecret\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "credential"
+    },
+    {
+      "name": "invalid-credential-27",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only\",\"binaryPath\":\"/tmp/untrusted\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "credential"
+    },
+    {
+      "name": "invalid-binaryPath-28",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"binaryPath\":\"/tmp/untrusted\"}",
+      "errorField": "parameters"
+    },
+    {
+      "name": "duplicate-key",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"host\":\"other.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "escaped-duplicate",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\",\"h\\u006fst\":\"other.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "duplicate-credential",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"kind\":\"uuid\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "unpaired-surrogate",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-\\ud800\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "fractional-port",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443.0,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "exponent-port",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443e0,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}",
+      "errorField": "profile"
+    },
+    {
+      "name": "trailing-json",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"} {}",
+      "errorField": "profile"
+    },
+    {
+      "name": "import-profile-trojan-tls-fingerprint",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-secret\"},\"transport\":\"tcp\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\"}",
+      "id": "server-v1-1d172f2ef1d4e11fd4bd2898c9d648f1d7538b4f4bb02d74479728f0dd3e04bc"
+    },
+    {
+      "name": "import-profile-reality-default-chrome",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "import-profile-reality-explicit-chrome",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "import-profile-reality-vision-short-id-alpn",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[\"h2\",\"http/1.1\"],\"flow\":\"vision\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",\"shortId\":\"0123456789abcdef\"}",
+      "id": "server-v1-e7165ff4397c724ee66dd1384b8ad38de17f070d17c770245cfed96a65b9306e"
+    },
+    {
+      "name": "import-profile-reality-empty-short-id",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",\"shortId\":\"\"}",
+      "id": "server-v1-de18d4b1c053f3fce0e298fc7f62a3f4f11f0830929068af2565d97414a64c58"
+    },
+    {
+      "name": "import-profile-hy2-salamander",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":\"test-only-obfs-password\"}",
+      "id": "server-v1-408e1c684bdadfcd0e5b6c0a3f975eb87286eeda59caf2d650752433635c8663"
+    },
+    {
+      "name": "import-profile-salamander-percent-secret",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":\"test-only:p+q@\"}",
+      "id": "server-v1-223f8dac1630a16172f20f378575d2de5b5c6c6a0eb2539ef71159acb52c21d8"
+    },
+    {
+      "name": "invalid-reality-publicKey-43",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=\"}",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "invalid-reality-shortId-44",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",\"shortId\":\"abc\"}",
+      "errorField": "shortId"
+    },
+    {
+      "name": "invalid-reality-fingerprint-45",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"unknown\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "errorField": "fingerprint"
+    },
+    {
+      "name": "invalid-reality-fingerprint-46",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":{\"command\":\"private-secret\"},\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "errorField": "fingerprint"
+    },
+    {
+      "name": "invalid-reality-transport-47",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"ws\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "errorField": "security"
+    },
+    {
+      "name": "invalid-reality-serverName-48",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":null,\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "errorField": "serverName"
+    },
+    {
+      "name": "invalid-reality-publicKey-49",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":null}",
+      "errorField": "publicKey"
+    },
+    {
+      "name": "invalid-reality-fingerprint-50",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":null,\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\"}",
+      "errorField": "fingerprint"
+    },
+    {
+      "name": "invalid-reality-obfs-51",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",\"obfs\":\"salamander\"}",
+      "errorField": "obfs"
+    },
+    {
+      "name": "invalid-salamander-obfs-52",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"unknown\",\"obfsPassword\":\"test-only-obfs-password\"}",
+      "errorField": "obfs"
+    },
+    {
+      "name": "invalid-salamander-obfsPassword-53",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":\"\"}",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "invalid-salamander-obfsPassword-54",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":null}",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "invalid-salamander-obfsPassword-55",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":\"private\\nsecret\"}",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "invalid-salamander-obfsPassword-56",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"hysteria2\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"quic\",\"security\":\"tls\",\"serverName\":\"proxy.example\",\"alpn\":[],\"flow\":\"none\",\"obfs\":\"salamander\",\"obfsPassword\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
+      "errorField": "obfsPassword"
+    },
+    {
+      "name": "unknown-reality-command",
+      "json": "{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"11111111-2222-4333-a444-555555555555\"},\"transport\":\"tcp\",\"security\":\"reality\",\"serverName\":\"front.example\",\"alpn\":[],\"flow\":\"none\",\"fingerprint\":\"chrome\",\"publicKey\":\"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",\"command\":\"private-secret\"}",
+      "errorField": "parameters"
+    },
+    {
+      "name": "xhttp-options-auto",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpMode\":\"auto\",\"xhttpExtra\":\"{\\\"xPaddingBytes\\\":\\\"10-20\\\",\\\"xmux\\\":{\\\"maxConcurrency\\\":\\\"16-32\\\"}}\"}",
+      "id": "server-v1-48d6d96acd4da2c87e6ab7ebe7c9ec3e351314912bfe8d6e519718ba8e74e9ab"
+    },
+    {
+      "name": "xhttp-options-packet-up",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpMode\":\"packet-up\",\"xhttpExtra\":\"{\\\"xPaddingBytes\\\":\\\"10-20\\\",\\\"xmux\\\":{\\\"maxConcurrency\\\":\\\"16-32\\\"}}\"}",
+      "id": "server-v1-44803c6d459c23268aec3018a868dfc24b08abeeafe5c7dad31b8b5ed41786d8"
+    },
+    {
+      "name": "xhttp-options-stream-up",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpMode\":\"stream-up\",\"xhttpExtra\":\"{\\\"xPaddingBytes\\\":\\\"10-20\\\",\\\"xmux\\\":{\\\"maxConcurrency\\\":\\\"16-32\\\"}}\"}",
+      "id": "server-v1-aa6195f124a4a4ec23739ef310e8f744c9fd7a59c95c636178ed9017722e4820"
+    },
+    {
+      "name": "xhttp-options-stream-one",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpMode\":\"stream-one\",\"xhttpExtra\":\"{\\\"xPaddingBytes\\\":\\\"10-20\\\",\\\"xmux\\\":{\\\"maxConcurrency\\\":\\\"16-32\\\"}}\"}",
+      "id": "server-v1-5d378c558fe3c2414ccbdd633100593dcbaa944d315a5a5f8b1272d3936bfc1e"
+    },
+    {
+      "name": "xhttp-h3-pins",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h3\"],\"flow\":\"none\",\"path\":\"/test\",\"certificatePins\":[\"abababababababababababababababababababababababababababababababab\"],\"certificateNames\":[\"*.server.example\"],\"xhttpMode\":\"stream-one\"}",
+      "id": "server-v1-be9efb9354b3af933d34eef0df0c26f644f936d7002ef11374caf078af284dff"
+    },
+    {
+      "name": "xhttp-reject-foreign-download",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpExtra\":\"{\\\"downloadSettings\\\":{\\\"address\\\":\\\"other.example\\\"}}\"}",
+      "errorField": "extra"
+    },
+    {
+      "name": "xhttp-reject-direct-download",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpExtra\":\"{\\\"downloadSettings\\\":{\\\"sockopt\\\":{\\\"dialerProxy\\\":\\\"direct\\\"}}}\"}",
+      "errorField": "extra"
+    },
+    {
+      "name": "xhttp-reject-memory-limit",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpExtra\":\"{\\\"scMaxEachPostBytes\\\":16777216,\\\"scMaxBufferedPosts\\\":64}\"}",
+      "errorField": "extra"
+    },
+    {
+      "name": "xhttp-reject-duplicate-extra-key",
+      "json": "{\"host\":\"server.example\",\"port\":443,\"serverProtocol\":\"vless\",\"credential\":{\"kind\":\"uuid\",\"value\":\"00000000-0000-4000-a000-000000000001\"},\"transport\":\"xhttp\",\"security\":\"tls\",\"serverName\":\"server.example\",\"alpn\":[\"h2\"],\"flow\":\"none\",\"path\":\"/test\",\"xhttpExtra\":\"{\\\"noSSEHeader\\\":true,\\\"noSSEHeader\\\":false}\"}",
+      "errorField": "extra"
+    }
+  ],
+  "requests": [
+    {
+      "name": "warp-valid",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{}}",
+      "serverCapabilities": false
+    },
+    {
+      "name": "server-default-refused",
+      "json": "{\"version\":1,\"mode\":\"server\",\"probeKind\":\"serverHTTPS\",\"strategyId\":\"portable-test\",\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"},\"options\":{}}",
+      "serverCapabilities": false,
+      "errorField": "capabilities"
+    },
+    {
+      "name": "server-explicit-test-capabilities",
+      "json": "{\"version\":1,\"mode\":\"server\",\"probeKind\":\"serverHTTPS\",\"strategyId\":\"portable-test\",\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"},\"options\":{}}",
+      "serverCapabilities": true
+    },
+    {
+      "name": "explicit-plain",
+      "json": "{\"version\":1,\"mode\":\"server\",\"probeKind\":\"serverHTTPS\",\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"},\"options\":{\"allowPlain\":true}}",
+      "serverCapabilities": true
+    },
+    {
+      "name": "implicit-plain",
+      "json": "{\"version\":1,\"mode\":\"server\",\"probeKind\":\"serverHTTPS\",\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"},\"options\":{}}",
+      "serverCapabilities": true,
+      "errorField": "plain"
+    },
+    {
+      "name": "invalid-version-5",
+      "json": "{\"version\":99,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{}}",
+      "serverCapabilities": false,
+      "errorField": "version"
+    },
+    {
+      "name": "invalid-mode-6",
+      "json": "{\"version\":1,\"mode\":\"private-secret\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{}}",
+      "serverCapabilities": false,
+      "errorField": "mode"
+    },
+    {
+      "name": "invalid-probeKind-7",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"serverHTTPS\",\"strategyId\":\"warp-q-google6\",\"options\":{}}",
+      "serverCapabilities": false,
+      "errorField": "probeKind"
+    },
+    {
+      "name": "invalid-strategyId-8",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"\",\"options\":{}}",
+      "serverCapabilities": false,
+      "errorField": "strategyId"
+    },
+    {
+      "name": "invalid-profile-9",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{},\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":443,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"}}",
+      "serverCapabilities": false,
+      "errorField": "profile"
+    },
+    {
+      "name": "invalid-options-10",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{\"routeAll\":true}}",
+      "serverCapabilities": false,
+      "errorField": "routing"
+    },
+    {
+      "name": "invalid-options-11",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{\"overrideDNS\":true}}",
+      "serverCapabilities": false,
+      "errorField": "routing"
+    },
+    {
+      "name": "invalid-options-12",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{\"dialTimeoutMs\":0}}",
+      "serverCapabilities": false,
+      "errorField": "timeout"
+    },
+    {
+      "name": "invalid-options-13",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{\"allowPlain\":true}}",
+      "serverCapabilities": false,
+      "errorField": "plain"
+    },
+    {
+      "name": "invalid-options-14",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{\"argv\":[\"private-secret\"]}}",
+      "serverCapabilities": false,
+      "errorField": "parameters"
+    },
+    {
+      "name": "invalid-command-15",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{},\"command\":\"private-secret\"}",
+      "serverCapabilities": false,
+      "errorField": "parameters"
+    },
+    {
+      "name": "nested-profile-field",
+      "json": "{\"version\":1,\"mode\":\"server\",\"probeKind\":\"serverHTTPS\",\"strategyId\":\"portable-test\",\"profile\":{\"label\":\"\",\"host\":\"proxy.example\",\"port\":0,\"serverProtocol\":\"trojan\",\"credential\":{\"kind\":\"password\",\"value\":\"test-only-password\"},\"transport\":\"tcp\",\"security\":\"tls\",\"alpn\":[],\"flow\":\"none\",\"serverName\":\"proxy.example\"},\"options\":{}}",
+      "serverCapabilities": true,
+      "errorField": "port"
+    },
+    {
+      "name": "duplicate-mode",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{},\"mode\":\"server\"}",
+      "serverCapabilities": false,
+      "errorField": "parameters"
+    },
+    {
+      "name": "request-trailing-json",
+      "json": "{\"version\":1,\"mode\":\"warp\",\"probeKind\":\"warpTrace\",\"strategyId\":\"warp-q-google6\",\"options\":{}} {}",
+      "serverCapabilities": false,
+      "errorField": "parameters"
+    }
+  ],
+  "sources": [
+    {
+      "name": "warp-source",
+      "json": "{\"kind\":\"warp\"}",
+      "id": "source-v1-a3156074cbdca6ac8d609ebaee6f8217d8f3dd30faa893b44fb2bc5648f18b80"
+    },
+    {
+      "name": "manual-source",
+      "json": "{\"kind\":\"manual\",\"label\":\"Manual servers\"}",
+      "id": "source-v1-c1daaeea146093309f189667df01e98b276c31ec3b8b80cab1d356a83cd841c9"
+    },
+    {
+      "name": "valid-subscription-0",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example/list?token=private-source-token\"}",
+      "id": "source-v1-6199b0db59e3c8880318f1e05075bae072e7c5cf164b85899cc7088bd14dce71"
+    },
+    {
+      "name": "valid-subscription-1",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example:8443/list?token=private-source-token\"}",
+      "id": "source-v1-e25bf27b3eea7d874360140a3017ce7ca1338a7ec74ee0c4c9d29e2551d93f71"
+    },
+    {
+      "name": "valid-subscription-2",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"HTTPS://Subscriptions.Example/list?token=private-source-token\"}",
+      "id": "source-v1-62cb8aa0c87d67b6e6a6d69fe657a4d7fde5a8936879b60cc9bbee627f221b2a"
+    },
+    {
+      "name": "valid-subscription-3",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://127.0.0.1:8443/private-list\"}",
+      "id": "source-v1-491f94b2c0a08c321a67ecdf9fac407413514a25fe73de73a7860e95d2adf247"
+    },
+    {
+      "name": "valid-subscription-4",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://[::1]:8443/private-list\"}",
+      "id": "source-v1-1e034fa0a1be24e926c5a705edca5d617cb8f55797070b9dc2bcbf39bf7186cb"
+    },
+    {
+      "name": "valid-subscription-5",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example\"}",
+      "id": "source-v1-2888b45b366c5f6d2b4e86ed466625f4cb4b8efaa33486cd3cb538314b4f4d9c"
+    },
+    {
+      "name": "valid-subscription-6",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example/?\"}",
+      "id": "source-v1-247a834d4c651b193f31ee9384c9d43fd4193f676fa28dd60ca85b0ecfd84c67"
+    },
+    {
+      "name": "valid-subscription-7",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example/a%20b?token=p%2Bq%3A%2F\"}",
+      "id": "source-v1-faf4dd8409bf2b7cd19fa5faf74840cbbd1a187af75cf7240b226756b0cade80"
+    },
+    {
+      "name": "valid-subscription-8",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Test source\",\"subscriptionURL\":\"https://subscriptions.example/list?name=%F0%9F%98%80\"}",
+      "id": "source-v1-2adc6cc09d2fac3a10f8a81cc4effdbfdd62414073f334d1889852befc9299e3"
+    },
+    {
+      "name": "renamed-source",
+      "json": "{\"kind\":\"subscription\",\"label\":\"Renamed source\",\"subscriptionURL\":\"https://subscriptions.example/list?token=private-source-token\"}",
+      "id": "source-v1-6199b0db59e3c8880318f1e05075bae072e7c5cf164b85899cc7088bd14dce71"
+    },
+    {
+      "name": "changed-source-token",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=different-source-token\"}",
+      "id": "source-v1-a219ab9fe63e4ce60cc23ce5ecbc93b8be3810d12c057985d487ce52109a34c5"
+    },
+    {
+      "name": "invalid-url-0",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"http://subscriptions.example/list?token=private-source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-1",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"file:///private-source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-2",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"//subscriptions.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-3",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https:subscriptions.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-4",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https:///subscriptions.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-5",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://user:private-source-token@subscriptions.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-6",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://@subscriptions.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-7",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list#private-source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-8",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example:0/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-9",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example:65536/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-10",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example:/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-11",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://999.999.999.999/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-12",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://001.2.3.4/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-13",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example./list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-14",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://-bad.example/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-15",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://[fe80::1%25en0]/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-16",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://[::ffff:127.0.0.1]/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-17",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://[127.0.0.1]/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-18",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://::1/list\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-19",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/a[bad]\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-20",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=[bad]\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-21",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=%GG\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-22",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=%00\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-23",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=%0A\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-24",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=%FF\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-25",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=%E2%80%AE\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-26",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/private source token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-27",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=private\\\\source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-28",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/{token}\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-29",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/list?token=тест\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "invalid-url-30",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://subscriptions.example/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "missing-kind",
+      "json": "{}",
+      "errorField": "source"
+    },
+    {
+      "name": "invalid-kind",
+      "json": "{\"kind\":\"private-source-token\"}",
+      "errorField": "source"
+    },
+    {
+      "name": "missing-url",
+      "json": "{\"kind\":\"subscription\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "null-url",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":null}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "stray-warp-url",
+      "json": "{\"kind\":\"warp\",\"subscriptionURL\":\"https://subscriptions.example/list?token=private-source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "stray-manual-url",
+      "json": "{\"kind\":\"manual\",\"subscriptionURL\":\"https://subscriptions.example/list?token=private-source-token\"}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "forged-id",
+      "json": "{\"kind\":\"manual\",\"id\":\"private-source-token\"}",
+      "errorField": "parameters"
+    },
+    {
+      "name": "unknown-path",
+      "json": "{\"kind\":\"manual\",\"binaryPath\":\"private-source-token\"}",
+      "errorField": "parameters"
+    },
+    {
+      "name": "bad-label",
+      "json": "{\"kind\":\"manual\",\"label\":\"private\\nsource-token\"}",
+      "errorField": "label"
+    },
+    {
+      "name": "long-label",
+      "json": "{\"kind\":\"manual\",\"label\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
+      "errorField": "label"
+    },
+    {
+      "name": "url-not-string",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":{\"token\":\"private-source-token\"}}",
+      "errorField": "sourceURL"
+    },
+    {
+      "name": "duplicate-source-kind",
+      "json": "{\"kind\":\"manual\",\"kind\":\"warp\"}",
+      "errorField": "source"
+    },
+    {
+      "name": "unbracketed-ipv6-nonnumeric-suffix",
+      "json": "{\"kind\":\"subscription\",\"subscriptionURL\":\"https://2001:db8::abcd/list\"}",
+      "errorField": "sourceURL"
+    }
+  ]
+}

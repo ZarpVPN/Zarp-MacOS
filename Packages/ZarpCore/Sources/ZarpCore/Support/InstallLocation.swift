@@ -1,23 +1,9 @@
 import Foundation
 
-/// A place the app can be running from where registering the `zarpd` LaunchDaemon is wrong — either
-/// because it would quietly produce a daemon that stops working, or because it would hand a root
-/// process to a location ordinary users can modify.
-///
-/// `SMAppService.daemon`'s plist uses `BundleProgram`, a path *relative to the app bundle*, so
-/// launchd re-resolves it against wherever the bundle was when `register()` ran, and:
-///
-/// - A `.dmg` double-clicked and opened in place (or an app on any other mounted volume) vanishes
-///   when the image is ejected, taking the daemon's executable with it.
-/// - A quarantined app launched from where it was downloaded (Downloads, Desktop) instead of being
-///   moved first is run by Gatekeeper from a randomized, read-only "App Translocation" copy that is
-///   discarded afterwards.
-///
-/// And because the daemon runs as **root**, where its executable lives matters for security too: a
-/// bundle in a folder the logged-in user owns (`~/Applications`, `~/Downloads`, a build directory)
-/// is an executable any process of that user could replace, which would then run as root. So a
-/// release build only registers the daemon from the system `/Applications` folder. (Development
-/// builds, run from Xcode's DerivedData, are exempt — see `detect`.)
+/// Reject temporary or untrusted locations before privileged registration.
+/// Release manifests use an explicit Program under /Applications/Zarp.app.
+/// DaemonLaunchConfiguration separately verifies that the actual app copy owns
+/// that executable. Debug manifests point to their own build directory.
 public enum InstallLocationProblem: Equatable, Sendable {
     case mountedVolume
     case translocated

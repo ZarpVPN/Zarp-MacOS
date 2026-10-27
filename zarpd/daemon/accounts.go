@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"context"
-	"errors"
+	"net/http"
 	"sync"
 	"time"
 
@@ -17,13 +17,17 @@ import (
 type FileAccounts struct {
 	Path       string
 	DeviceName string
-	// Timeout bounds one registration (default 60s): the underlying API call takes no context.
+	// Timeout bounds and cancels all registration HTTP work.
 	Timeout time.Duration
 	// RegisterFn performs the registration (default warp.Register); tests substitute it.
-	RegisterFn func(configPath, deviceName string) error
+	RegisterFn     func(context.Context, string, string) error
+	AccountAPI     *warp.AccountAPI
+	SetupTransport func(context.Context, *warp.RegistrationStrategy) (http.RoundTripper, error)
+	SetupNotify    func(string, int, int)
 
-	mu  sync.Mutex
-	has bool
+	mu      sync.Mutex
+	setupMu sync.Mutex
+	has     bool
 }
 
 // Has reports whether a usable account is on disk. A positive answer is cached — an account does
@@ -39,22 +43,38 @@ func (a *FileAccounts) Has() bool {
 
 // Register creates the account.
 func (a *FileAccounts) Register(ctx context.Context) error {
-	fn := a.RegisterFn
-	if fn == nil {
-		fn = warp.Register
-	}
 	timeout := a.Timeout
 	if timeout <= 0 {
-		timeout = 60 * time.Second
+		timeout = warp.AccountSetupTimeout
 	}
-	done := make(chan error, 1)
-	go func() { done <- fn(a.Path, a.DeviceName) }()
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(timeout):
-		return errors.New("timed out waiting for Cloudflare")
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if a.RegisterFn != nil {
+		return a.RegisterFn(ctx, a.Path, a.DeviceName)
 	}
+	_, err := a.Setup(ctx, warp.AccountSetupRequest{Version: warp.AccountSetupVersion, Operation: "register"}, false)
+	return err
+}
+
+func (a *FileAccounts) State() string { return warp.AccountState(a.Path) }
+
+func (a *FileAccounts) Setup(ctx context.Context, input warp.AccountSetupRequest, allowProtected bool) (warp.AccountSetupResult, error) {
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return warp.AccountSetupResult{}, err
+	}
+	service := warp.Registration{Path: a.Path, DeviceName: a.DeviceName, Notify: a.SetupNotify, Factory: func(ctx context.Context, s *warp.RegistrationStrategy) (http.RoundTripper, error) {
+		if s != nil && !allowProtected {
+			return nil, &warp.SetupError{Code: "foreign_vpn"}
+		}
+		if a.SetupTransport != nil {
+			return a.SetupTransport(ctx, s)
+		}
+		if s != nil {
+			return nil, &warp.SetupError{Code: "unsupported"}
+		}
+		return warp.NewRegistrationTransport(nil, nil)
+	}}
+	return service.Do(ctx, input)
 }

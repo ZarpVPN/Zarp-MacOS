@@ -27,7 +27,7 @@ certificate, which stays on the maintainer's Mac.
 
 ## Checklist
 
-1. **Decide the version** (semantic versioning; 0.x while the project is young). Set `MARKETING_VERSION` in
+1. **Decide the version** using semantic versioning. Set `MARKETING_VERSION` in
    [`project.yml`](../project.yml) (and bump `CURRENT_PROJECT_VERSION` by one). The daemon is stamped with the
    same version, and the app uses it to notice a stale daemon after an update.
 2. **Write the changelog.** Move the *Unreleased* entries in [`CHANGELOG.md`](../CHANGELOG.md) under the new
@@ -39,7 +39,10 @@ certificate, which stays on the maintainer's Mac.
    scripts/gen-notices.sh --check
    ```
 
-   Then, with every other VPN off, `scripts/test-integration.sh`, and keep its `RESULT` block for the notes.
+   System testing is performed by the maintainer after choosing when to stop
+   other VPNs. Record its actual result separately from loopback/build checks.
+   A build must not describe an unperformed system test as passed. Current
+   evidence and remaining limits are in [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md).
 4. **Build the image.**
 
    ```sh
@@ -57,17 +60,28 @@ certificate, which stays on the maintainer's Mac.
    works too). The artwork is `scripts/dmg/background*.png`, redrawn with `make dmg-art`; the icon positions
    are in `scripts/dmg/settings.py` and must agree with it.
 5. **Smoke-test the artifact** as a user would: open the image (it should show the install window: Zarp, an
-   arrow and Applications), drag the app to `/Applications` (replacing a development copy), pass Gatekeeper, install the daemon from Settings, connect, browse, disconnect, and
+   arrow and Applications), drag the app to `/Applications` (replacing a development copy), pass Gatekeeper, approve automatic service preparation when macOS requests it, connect, browse, disconnect, and
    check that the network is back to normal. This is the step that catches packaging problems the script
    cannot.
 6. **Commit and tag.**
 
    ```sh
-   VERSION=0.3.0                      # the version you are releasing
-   git add -A && git commit -m "Release $VERSION"
+   VERSION=1.0.0                      # the version you are releasing
+   git remote set-url origin https://github.com/ZarpVPN/Zarp-MacOS.git
+   git add -A
+   git diff --cached --check
+   git commit -m "Release $VERSION"
+   git fetch origin
+   git rebase origin/main
    git tag -a "v$VERSION" -m "Zarp for macOS $VERSION"
-   git push && git push origin "v$VERSION"
+   git push --atomic origin main "v$VERSION"
    ```
+
+   The current checkout has eleven patch-equivalent local commits and four
+   additional upstream README commits. The prepared README preserves both sets
+   of changes. Rebase skips the duplicate patches and places the release on
+   the updated `origin/main`. Complete any reported conflict before tagging or
+   pushing. Publish only the intended release tag.
 
 7. **Publish the release** on GitHub with the image and its checksum attached. Publish a normal release, not
    a pre-release: the README's download button points to `releases/latest`, and GitHub resolves that to the
@@ -75,13 +89,19 @@ certificate, which stays on the maintainer's Mac.
 
    ```sh
    gh release create "v$VERSION" "build/Zarp-$VERSION-arm64.dmg" "build/Zarp-$VERSION-arm64.dmg.sha256" \
-     --title "Zarp for macOS $VERSION" --notes-file release-notes.md
+     --repo ZarpVPN/Zarp-MacOS --verify-tag --latest \
+     --title "Zarp for macOS $VERSION" --notes-file "docs/releases/$VERSION.md"
    ```
 
    `gh` is not installed by default: `brew install gh`, then `gh auth login` once. Without it, use the
-   *Draft a new release* page instead (`https://github.com/feg55/Zarp-MacOS/releases/new?tag=v0.3.0`, which
+   *Draft a new release* page instead (`https://github.com/ZarpVPN/Zarp-MacOS/releases/new?tag=v1.0.0`, which
    also accepts `title` and `body` query parameters), choose the existing tag, paste the notes and drag the
    two files in.
+
+   The exact 1.0.0 notes are in [releases/1.0.0.md](releases/1.0.0.md).
+   Compare the image checksum with the local release-verification report before
+   uploading. The build and checksum stay under ignored `build/`; attach them
+   as release assets rather than committing the binaries.
 
 ## Release notes template
 

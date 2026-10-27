@@ -50,14 +50,15 @@ func TestBlobNamesAgreeAndTheFilesExist(t *testing.T) {
 func TestToFakeStepsMapsTTLAndRepeats(t *testing.T) {
 	o := &RealOpener{BlobsDir: filepath.Join("..", "..", "Resources", "blobs")}
 	ttl := 4
+	hops := 7
 	steps, err := o.toFakeSteps([]ipc.FakeStep{
-		{Blob: "quic_google", Repeats: 3, IPTTL: &ttl},
+		{Blob: "quic_google", Repeats: 3, IPTTL: &ttl, IP6TTL: &hops},
 		{Blob: "zero64", Repeats: 2},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(steps) != 2 || steps[0].Repeats != 3 || steps[0].TTL != 4 || steps[1].TTL != 0 || len(steps[1].Blob) != 64 {
+	if len(steps) != 2 || steps[0].Repeats != 3 || steps[0].TTL != 4 || steps[0].HopLimit != 7 || steps[1].TTL != 0 || len(steps[1].Blob) != 64 {
 		t.Fatalf("%+v", steps)
 	}
 }

@@ -2,6 +2,7 @@ package ipc
 
 import (
 	"encoding/json"
+	"github.com/feg55/zarp-macos/zarpd/connection"
 	"testing"
 )
 
@@ -10,6 +11,7 @@ import (
 // `omitempty` added to a value whose zero is meaningful — on either side breaks a test here or
 // there instead of the running app. If you change one, change the other.
 func TestWireFormat(t *testing.T) {
+	capabilities := connection.CurrentWarpOnly()
 	tests := []struct {
 		name string
 		v    any
@@ -17,18 +19,22 @@ func TestWireFormat(t *testing.T) {
 	}{
 		{"ping", PingResult{Version: "0.1.0", Pid: 4242, Protocol: 2, AccountRegistered: true},
 			`{"version":"0.1.0","pid":4242,"protocol":2,"accountRegistered":true}`},
+		{"ping capabilities", PingResult{Version: "parity", Pid: 4242, Protocol: 3, RuntimeCapabilities: &capabilities},
+			`{"version":"parity","pid":4242,"protocol":3,"accountRegistered":false,"runtimeCapabilities":{"schemaVersion":1,"modes":["warp"],"serverProtocols":[],"outerTransports":["tcp","udp"]}}`},
 		{"status, idle", StatusResult{DaemonRunning: true, AccountRegistered: true},
-			`{"daemonRunning":true,"accountRegistered":true,"connected":false,"routeAll":false}`},
+			`{"daemonRunning":true,"accountRegistered":true,"connected":false,"networkBusy":false,"routeAll":false}`},
 		{"status, full tunnel", StatusResult{
-			DaemonRunning: true, AccountRegistered: true, Connected: true, ConnectionID: "7", StrategyID: "warp-q-google6",
+			DaemonRunning: true, AccountRegistered: true, Connected: true, NetworkBusy: true, ConnectionID: "7", StrategyID: "warp-q-google6",
 			Endpoint: "162.159.198.2:500", Transport: "masqueH3", ConnectMs: 203, ConnectStartedAt: "2026-10-06T10:00:00Z",
 			UtunName: "utun8", RouteAll: true},
-			`{"daemonRunning":true,"accountRegistered":true,"connected":true,"connectionId":"7","strategyId":"warp-q-google6","endpoint":"162.159.198.2:500","transport":"masqueH3","connectMs":203,"connectStartedAt":"2026-10-06T10:00:00Z","utunName":"utun8","routeAll":true}`},
-		{"status, test route only", StatusResult{DaemonRunning: true, Connected: true, ConnectionID: "2", RouteAll: false},
-			`{"daemonRunning":true,"accountRegistered":false,"connected":true,"connectionId":"2","routeAll":false}`},
+			`{"daemonRunning":true,"accountRegistered":true,"connected":true,"networkBusy":true,"connectionId":"7","strategyId":"warp-q-google6","endpoint":"162.159.198.2:500","transport":"masqueH3","connectMs":203,"connectStartedAt":"2026-10-06T10:00:00Z","utunName":"utun8","routeAll":true}`},
+		{"status, test route only", StatusResult{DaemonRunning: true, Connected: true, NetworkBusy: true, ConnectionID: "2", RouteAll: false},
+			`{"daemonRunning":true,"accountRegistered":false,"connected":true,"networkBusy":true,"connectionId":"2","routeAll":false}`},
 		{"status, after a loss", StatusResult{DaemonRunning: true, AccountRegistered: true,
 			LastLoss: &LossInfo{ConnectionID: "3", Reason: "no recent network activity", At: "2026-10-06T10:01:00Z"}},
-			`{"daemonRunning":true,"accountRegistered":true,"connected":false,"routeAll":false,"lastLoss":{"connectionId":"3","reason":"no recent network activity","at":"2026-10-06T10:01:00Z"}}`},
+			`{"daemonRunning":true,"accountRegistered":true,"connected":false,"networkBusy":false,"routeAll":false,"lastLoss":{"connectionId":"3","reason":"no recent network activity","at":"2026-10-06T10:01:00Z"}}`},
+		{"status, scan or cleanup", StatusResult{DaemonRunning: true, NetworkBusy: true},
+			`{"daemonRunning":true,"accountRegistered":false,"connected":false,"networkBusy":true,"routeAll":false}`},
 		{"open result", OpenResult{ConnectionID: "9", ConnectMs: 120, Endpoint: "162.159.198.1:443", UtunName: "utun8", RouteAll: true,
 			Warnings: []string{"DNS was not overridden: boom"}},
 			`{"connectionId":"9","connectMs":120,"endpoint":"162.159.198.1:443","utunName":"utun8","routeAll":true,"warnings":["DNS was not overridden: boom"]}`},

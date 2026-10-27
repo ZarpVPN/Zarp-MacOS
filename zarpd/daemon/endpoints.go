@@ -26,12 +26,9 @@ const defaultPort = 443
 
 // isolatedEndpoint is the n-th pool endpoint: addresses vary fastest, then ports (so consecutive
 // attempts differ in address, and only after both addresses have been used does the port move on).
-// HTTP/2 rides TCP 443 only, so for it only the address rotates.
-func isolatedEndpoint(n int, h2 bool) netip.AddrPort {
+// This rotation is HTTP3-only. HTTP2 uses the account's dedicated TCP endpoint.
+func isolatedEndpoint(n int) netip.AddrPort {
 	ip := poolIPs[n%len(poolIPs)]
-	if h2 {
-		return netip.AddrPortFrom(ip, uint16(defaultPort))
-	}
 	return netip.AddrPortFrom(ip, uint16(poolH3Ports[(n/len(poolIPs))%len(poolH3Ports)]))
 }
 
@@ -43,11 +40,15 @@ func isolatedEndpoint(n int, h2 bool) netip.AddrPort {
 //   - "ip" / "ip:port" — exactly that (already checked against the WARP ranges).
 func resolveEndpoint(p ipc.OpenParams, cfg *usqueconfig.Config) (netip.AddrPort, error) {
 	h2 := p.Transport == "masqueH2"
+	n, isolated := ipc.IsolatedToken(p.Endpoint)
 	switch {
-	case p.Endpoint == "":
+	case p.Endpoint == "" || h2 && isolated:
 		host := cfg.EndpointV4
 		if h2 {
 			host = cfg.EndpointH2V4
+			if host == "" {
+				host = usqueconfig.DefaultEndpointH2V4
+			}
 		}
 		ip, err := netip.ParseAddr(host)
 		if err != nil {
@@ -55,8 +56,8 @@ func resolveEndpoint(p ipc.OpenParams, cfg *usqueconfig.Config) (netip.AddrPort,
 		}
 		return netip.AddrPortFrom(ip.Unmap(), uint16(defaultPort)), nil
 	default:
-		if n, ok := ipc.IsolatedToken(p.Endpoint); ok {
-			return isolatedEndpoint(n, h2), nil
+		if isolated {
+			return isolatedEndpoint(n), nil
 		}
 		ip, port, err := ipc.ParseEndpoint(p.Endpoint)
 		if err != nil {

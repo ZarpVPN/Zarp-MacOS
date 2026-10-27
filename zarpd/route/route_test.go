@@ -80,6 +80,22 @@ func TestCurrentDefaultUsesTheInterfaceFromRouteGet(t *testing.T) {
 	}
 }
 
+func TestIPv6DefaultPreservesTheScopedGateway(t *testing.T) {
+	f := &fakeRunner{handler: func(_ string, _ []string) (string, error) {
+		return "gateway: fe80::1%lo0\ninterface: lo0\n", nil
+	}}
+	p, err := New(f).CurrentDefaultFamily(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Gateway.String() != "fe80::1" || p.GatewayZone != "lo0" || p.Index == 0 {
+		t.Fatalf("bad IPv6 default: %+v", p)
+	}
+	if f.log()[0] != "/sbin/route -n get -inet6 default" {
+		t.Fatalf("wrong family lookup: %v", f.log())
+	}
+}
+
 func TestCurrentDefaultErrors(t *testing.T) {
 	r := New(&fakeRunner{handler: func(string, []string) (string, error) { return "route: not in table", errors.New("exit 1") }})
 	if _, err := r.CurrentDefault(); err == nil {

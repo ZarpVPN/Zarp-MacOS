@@ -43,7 +43,7 @@ func TestFileAccountsRejectsAHalfWrittenConfig(t *testing.T) {
 
 func TestFileAccountsRegister(t *testing.T) {
 	var gotPath, gotName string
-	a := &FileAccounts{Path: "/x/cfg.json", DeviceName: "Zarp macOS", RegisterFn: func(p, n string) error {
+	a := &FileAccounts{Path: "/x/cfg.json", DeviceName: "Zarp macOS", RegisterFn: func(_ context.Context, p, n string) error {
 		gotPath, gotName = p, n
 		return nil
 	}}
@@ -51,16 +51,14 @@ func TestFileAccountsRegister(t *testing.T) {
 		t.Fatalf("%v %q %q", err, gotPath, gotName)
 	}
 	boom := errors.New("boom")
-	a.RegisterFn = func(string, string) error { return boom }
+	a.RegisterFn = func(context.Context, string, string) error { return boom }
 	if err := a.Register(context.Background()); !errors.Is(err, boom) {
 		t.Fatalf("%v", err)
 	}
 }
 
 func TestFileAccountsRegisterHonorsCancelAndTimeout(t *testing.T) {
-	release := make(chan struct{})
-	defer close(release)
-	a := &FileAccounts{RegisterFn: func(string, string) error { <-release; return nil }, Timeout: 150 * time.Millisecond}
+	a := &FileAccounts{RegisterFn: func(ctx context.Context, _ string, _ string) error { <-ctx.Done(); return ctx.Err() }, Timeout: 150 * time.Millisecond}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(50 * time.Millisecond); cancel() }()

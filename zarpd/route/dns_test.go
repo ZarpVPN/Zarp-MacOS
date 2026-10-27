@@ -195,16 +195,20 @@ func TestDNSApplyFirstRestoresLeftovers(t *testing.T) {
 	}
 }
 
-func TestDNSApplyFailureLeavesNothingBehind(t *testing.T) {
+func TestDNSApplyAndRollbackFailureRetainsRecoveryData(t *testing.T) {
 	w := newDNSWorld()
 	w.servers["Wi-Fi"] = []string{"10.0.0.53"}
 	w.failSet = true
 	d, backup := newDNS(t, w)
-	if err := d.Apply("en0", false); err == nil {
-		t.Fatal("expected an error")
+	if err := d.Apply("en0", false); !errors.Is(err, ErrCleanupIncomplete) {
+		t.Fatalf("expected cleanup uncertainty, got %v", err)
 	}
-	if exists(backup) {
-		t.Fatal("a failed Apply must not leave a backup that a later run would 'restore'")
+	if !exists(backup) {
+		t.Fatal("uncertain rollback must retain the original DNS recovery data")
+	}
+	w.failSet = false
+	if err := d.RecoverStale(); err != nil || exists(backup) {
+		t.Fatalf("fake recovery failed: %v", err)
 	}
 	if got := w.servers["Wi-Fi"]; !reflect.DeepEqual(got, []string{"10.0.0.53"}) {
 		t.Fatalf("settings changed: %v", got)
@@ -247,7 +251,7 @@ func TestDNSNoServiceForInterface(t *testing.T) {
 	}
 }
 
-func TestDNSCorruptBackupIsDiscardedNotFatal(t *testing.T) {
+func TestDNSCorruptBackupIsRetainedAndNeverTreatedAsIdle(t *testing.T) {
 	w := newDNSWorld()
 	d, backup := newDNS(t, w)
 	if err := os.MkdirAll(filepath.Dir(backup), 0o700); err != nil {
@@ -260,12 +264,15 @@ func TestDNSCorruptBackupIsDiscardedNotFatal(t *testing.T) {
 		if err := d.RecoverStale(); err == nil {
 			t.Fatalf("a bad backup (%q) should be reported", content)
 		}
-		if exists(backup) {
-			t.Fatalf("a bad backup (%q) must be dropped so every start doesn't trip on it", content)
+		if !exists(backup) {
+			t.Fatal("unreadable recovery data must not silently disappear")
+		}
+		if err := d.Apply("en0", false); !errors.Is(err, ErrCleanupIncomplete) {
+			t.Fatalf("an override must refuse uncertain prior state: %v", err)
 		}
 	}
-	if err := d.RecoverStale(); err != nil {
-		t.Fatalf("with no backup, RecoverStale is a no-op: %v", err)
+	if w.setCalls != 0 {
+		t.Fatal("corrupt recovery data must never become DNS commands")
 	}
 }
 

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	usqueconfig "github.com/Diniboy1123/usque/config"
 
 	"github.com/feg55/zarp-macos/zarpd/ipc"
+	"github.com/feg55/zarp-macos/zarpd/warp"
 )
 
 func TestIsolatedEndpointRotation(t *testing.T) {
@@ -25,14 +27,8 @@ func TestIsolatedEndpointRotation(t *testing.T) {
 		"162.159.198.1:443", // the pool wraps after 12
 	}
 	for n, w := range want {
-		if got := isolatedEndpoint(n, false).String(); got != w {
+		if got := isolatedEndpoint(n).String(); got != w {
 			t.Errorf("H3 endpoint #%d = %s, want %s", n, got, w)
-		}
-	}
-	// HTTP/2 only has TCP 443: only the address rotates.
-	for n, w := range []string{"162.159.198.1:443", "162.159.198.2:443", "162.159.198.1:443", "162.159.198.2:443"} {
-		if got := isolatedEndpoint(n, true).String(); got != w {
-			t.Errorf("H2 endpoint #%d = %s, want %s", n, got, w)
 		}
 	}
 }
@@ -40,29 +36,47 @@ func TestIsolatedEndpointRotation(t *testing.T) {
 func TestConsecutiveTestsAlwaysUseDifferentEndpoints(t *testing.T) {
 	// The point of "isolate tests": a test and the re-check right after it must not share a
 	// 5-tuple. ZarpEngine numbers its tokens consecutively.
-	for _, h2 := range []bool{false, true} {
-		for n := 0; n < 40; n++ {
-			if isolatedEndpoint(n, h2) == isolatedEndpoint(n+1, h2) {
-				t.Fatalf("h2=%v: endpoints #%d and #%d are identical", h2, n, n+1)
-			}
+	for n := 0; n < 40; n++ {
+		if isolatedEndpoint(n) == isolatedEndpoint(n+1) {
+			t.Fatalf("HTTP3 endpoints #%d and #%d are identical", n, n+1)
 		}
 	}
 }
 
 func TestEveryPoolEndpointPassesTheDaemonsOwnValidation(t *testing.T) {
 	// The pool must never produce an address the same daemon would refuse if a client asked for it.
-	for _, h2 := range []bool{false, true} {
-		transport := "masqueH3"
-		if h2 {
-			transport = "masqueH2"
+	for n := 0; n < 30; n++ {
+		ep := isolatedEndpoint(n).String()
+		p := ipc.OpenParams{Transport: "masqueH3", Endpoint: ep, FakeSteps: []ipc.FakeStep{{Blob: "quic_google", Repeats: 1}}}
+		if err := p.Validate(); err != nil {
+			t.Errorf("pool endpoint %s (#%d) fails validation: %v", ep, n, err)
 		}
-		for n := 0; n < 30; n++ {
-			ep := isolatedEndpoint(n, h2).String()
-			p := ipc.OpenParams{Transport: transport, Endpoint: ep}
-			if err := p.Validate(); err != nil {
-				t.Errorf("pool endpoint %s (#%d, %s) fails validation: %v", ep, n, transport, err)
+	}
+}
+
+func TestHotspotH2IsolationHonorsDedicatedAccountEndpoint(t *testing.T) {
+	// Tokens from the failed session must not alternate onto the HTTP3 .1 address.
+	for _, host := range []string{"", "162.159.198.2", "162.159.198.7"} {
+		cfg := &usqueconfig.Config{EndpointV4: "162.159.198.1", EndpointH2V4: host}
+		want := host
+		if want == "" {
+			want = usqueconfig.DefaultEndpointH2V4
+		}
+		for _, n := range []int{14, 15, 18, 19, 20} {
+			p := ipc.OpenParams{Transport: "masqueH2", Endpoint: fmt.Sprintf("isolated-%d", n)}
+			got, err := resolveEndpoint(p, cfg)
+			if err != nil || got.String() != want+":443" {
+				t.Fatalf("%+v: got %v, %v", p, got, err)
 			}
 		}
+	}
+	_, err := resolveEndpoint(ipc.OpenParams{Transport: "masqueH2", Endpoint: "isolated-14"}, &usqueconfig.Config{EndpointH2V4: "invalid"})
+	if err == nil {
+		t.Fatal("invalid dedicated endpoint silently fell back to the HTTP3 pool")
+	}
+	got, err := resolveEndpoint(ipc.OpenParams{Transport: "masqueH2", Endpoint: "162.159.192.9:4443"}, &usqueconfig.Config{})
+	if err != nil || got.String() != "162.159.192.9:4443" {
+		t.Fatal("explicit custom endpoint lost", got, err)
 	}
 }
 
@@ -119,5 +133,23 @@ func TestDialErrToConnError(t *testing.T) {
 		if ce.TimedOut || !strings.Contains(ce.Message, e.Error()) {
 			t.Errorf("%v: %+v", e, ce)
 		}
+	}
+}
+
+func TestPeerPinRejectionAndPhaseSurviveNestedOpenErrorConversion(t *testing.T) {
+	verification := x509.CertificateInvalidError{Reason: x509.NoValidChains, Detail: "remote endpoint has a different public key than what we trust in config.json"}
+	native := &warp.DialError{Phase: "tls", Err: fmt.Errorf("HTTPS CONNECT: %w", verification)}
+	converted := dialErrToConnError(native)
+	converted = dialErrToConnError(fmt.Errorf("open failed: %w", converted))
+	failure := converted.(*ipc.ConnError)
+	if failure.Code != ipc.CodePeerKeyMismatch || failure.TimedOut || failure.Connection == nil || failure.Connection.Phase != "tls" {
+		t.Fatalf("transport failure was flattened into generic text: %+v", failure)
+	}
+	if !strings.Contains(failure.Message, verification.Detail) {
+		t.Fatal("original reason lost")
+	}
+	ordinary := dialErrToConnError(&warp.DialError{Phase: "tcp", Err: context.DeadlineExceeded}).(*ipc.ConnError)
+	if !ordinary.TimedOut || ordinary.Connection.Phase != "tcp" || ordinary.Code == ipc.CodePeerKeyMismatch {
+		t.Fatal("ordinary timeout became a trust failure", ordinary)
 	}
 }

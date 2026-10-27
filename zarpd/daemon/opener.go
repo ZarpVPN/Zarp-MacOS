@@ -16,6 +16,7 @@ import (
 	"golang.zx2c4.com/wireguard/tun"
 
 	"github.com/feg55/zarp-macos/zarpd/ipc"
+	"github.com/feg55/zarp-macos/zarpd/proxy"
 	"github.com/feg55/zarp-macos/zarpd/route"
 	"github.com/feg55/zarp-macos/zarpd/tunnel"
 	"github.com/feg55/zarp-macos/zarpd/warp"
@@ -39,6 +40,7 @@ var blobFiles = map[string]string{
 // installs routes — a single measurement host route for a scan, the full-tunnel set for a
 // persistent connection — and pumps packets.
 type RealOpener struct {
+	Backends    *proxy.GuardianLauncher
 	ConfigPath  string
 	BlobsDir    string
 	MeasureHost string
@@ -48,7 +50,8 @@ type RealOpener struct {
 	DNS    *route.DNSOverride // may be nil: then the DNS override is skipped with a warning
 	// Journal records the endpoint exclusion route a full tunnel installs, so a crash can't leave it
 	// behind (route/exclusion.go). May be nil.
-	Journal *route.Journal
+	Journal       *route.Journal
+	ScopedJournal *route.ScopedJournal
 
 	// Lifetime is the daemon's own context. An HTTP/2 tunnel's CONNECT-IP stream lives exactly as
 	// long as the context it was dialed with, so it must be this — not the short-lived IPC request
@@ -65,7 +68,37 @@ func (o *RealOpener) logf(format string, args ...any) {
 }
 
 // Open implements Opener.
-func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo, error) {
+func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (result Conn, resultInfo OpenInfo, openErr error) {
+	if p.Mode == "server" {
+		return o.openServer(ctx, p)
+	}
+	phase := "account"
+	var endpoint netip.AddrPort
+	defer func() {
+		if openErr == nil {
+			return
+		}
+		failure := *dialErrToConnError(openErr).(*ipc.ConnError)
+		if failure.Connection != nil && failure.Connection.Phase != "" {
+			phase = failure.Connection.Phase
+		}
+		var dialFailure *warp.DialError
+		if errors.As(openErr, &dialFailure) {
+			phase = dialFailure.Phase
+		}
+		if warp.IsPeerKeyMismatch(openErr) {
+			failure.Code, phase = ipc.CodePeerKeyMismatch, "tls"
+		}
+		address := ""
+		if endpoint.IsValid() {
+			address = endpoint.String()
+		}
+		failure.Connection = &ipc.ConnectionFailure{Endpoint: address, Transport: p.Transport,
+			Phase: phase, StrategyID: diagnosticStrategyID(p.StrategyID)}
+		openErr = &failure
+		o.logf("WARP open failed transport=%s endpoint=%s strategy=%s phase=%s code=%s timeout=%v",
+			p.Transport, address, failure.Connection.StrategyID, phase, failure.Code, failure.TimedOut)
+	}()
 	cfg, err := warp.LoadConfig(o.ConfigPath)
 	if err != nil {
 		return nil, OpenInfo{}, err
@@ -82,27 +115,27 @@ func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo
 		}
 	}
 
-	phys, err := o.Router.CurrentDefault()
+	phase = "endpoint"
+	endpoint, err = resolveEndpoint(p, cfg)
+	if err != nil {
+		return nil, OpenInfo{}, &ipc.ConnError{Code: ipc.CodeBadRequest, Message: err.Error()}
+	}
+	phase = "physical_path"
+	phys, err := o.Router.CurrentDefaultFamily(endpoint.Addr().Is6())
 	if err != nil {
 		return nil, OpenInfo{}, err
 	}
 	if phys.IsTunnel() {
-		if p.RouteAll {
-			return nil, OpenInfo{}, &ipc.ConnError{
-				Code:    ipc.CodeForeignVPN,
-				Message: fmt.Sprintf("another VPN or proxy is active (the default route is on %s): turn it off, then connect again", phys.Interface),
-			}
+		return nil, OpenInfo{}, &ipc.ConnError{
+			Code:    ipc.CodeForeignVPN,
+			Message: fmt.Sprintf("another VPN or proxy is active (the default route is on %s)", phys.Interface),
 		}
-		o.logf("warning: the default route is on %s (another VPN?) — the WARP connection will ride through it", phys.Interface)
 	}
 
-	tlsConfig, err := warp.TLSConfigFromAccount(cfg)
+	phase = "account_tls"
+	tlsConfig, err := warp.TLSConfigForStrategy(cfg, p.WarpTLSName)
 	if err != nil {
 		return nil, OpenInfo{}, err
-	}
-	endpoint, err := resolveEndpoint(p, cfg)
-	if err != nil {
-		return nil, OpenInfo{}, &ipc.ConnError{Code: ipc.CodeBadRequest, Message: err.Error()}
 	}
 	timeout := time.Duration(p.TimeoutMs) * time.Millisecond
 	if timeout <= 0 {
@@ -111,18 +144,20 @@ func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo
 
 	start := time.Now()
 	var session *warp.Session
+	phase = "connect"
 	if p.Transport == "masqueH2" {
 		session, err = o.dialH2(ctx, phys, tlsConfig, p, endpoint, timeout)
 	} else {
 		session, err = o.dialH3(ctx, phys, tlsConfig, p, endpoint, timeout)
 	}
 	if err != nil {
-		return nil, OpenInfo{}, dialErrToConnError(err)
+		return nil, OpenInfo{}, err
 	}
 	connectMs := int(time.Since(start).Milliseconds())
 
 	// From here on every failure must tear down what's been built so far: conn.Close does exactly
 	// that and is safe at any stage.
+	phase = "tun"
 	dev, err := tun.CreateTUN("utun", o.MTU)
 	if err != nil {
 		session.Close()
@@ -130,8 +165,11 @@ func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo
 	}
 	name, err := dev.Name()
 	if err != nil {
-		_ = dev.Close()
+		closeErr := dev.Close()
 		session.Close()
+		if closeErr != nil {
+			return nil, OpenInfo{}, errCleanupIncomplete
+		}
 		return nil, OpenInfo{}, err
 	}
 	conn := &realConn{
@@ -139,20 +177,27 @@ func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo
 		logf: o.logf, done: make(chan struct{}),
 	}
 	fail := func(err error) (Conn, OpenInfo, error) {
-		conn.Close()
+		if conn.Close() != nil {
+			return nil, OpenInfo{}, errCleanupIncomplete
+		}
 		return nil, OpenInfo{}, err
 	}
 
+	phase = "address"
 	if err := o.Router.ConfigureAddress(name, ipv4.String()); err != nil {
 		return fail(err)
 	}
 	info := OpenInfo{Endpoint: endpoint.String(), UtunName: name, ConnectMs: connectMs}
+	phase = "routes"
 	if p.RouteAll {
 		ft, warnings, err := o.Router.EnableFullTunnel(route.FullTunnelConfig{
 			Utun: name, IPv6Addr: ipv6, OverrideDNS: p.OverrideDNS, Physical: phys,
 			Exclude: endpoint.Addr(), Journal: o.Journal,
 		}, o.DNS)
 		if err != nil {
+			if errors.Is(err, route.ErrCleanupIncomplete) {
+				err = errCleanupIncomplete
+			}
 			return fail(err)
 		}
 		conn.full = ft
@@ -170,8 +215,16 @@ func (o *RealOpener) Open(ctx context.Context, p ipc.OpenParams) (Conn, OpenInfo
 	return conn, info, nil
 }
 
+// listenControlUDP makes the address family explicit for binding and fake hop limits.
+func listenControlUDP(v6 bool) (*net.UDPConn, error) {
+	if v6 {
+		return net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6unspecified})
+	}
+	return net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero})
+}
+
 func (o *RealOpener) dialH3(ctx context.Context, phys *route.Physical, tlsConfig *tls.Config, p ipc.OpenParams, endpoint netip.AddrPort, timeout time.Duration) (*warp.Session, error) {
-	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	udpConn, err := listenControlUDP(endpoint.Addr().Is6())
 	if err != nil {
 		return nil, err
 	}
@@ -182,24 +235,24 @@ func (o *RealOpener) dialH3(ctx context.Context, phys *route.Physical, tlsConfig
 	}
 	dst := net.UDPAddrFromAddrPort(endpoint)
 
-	if len(p.FakeSteps) > 0 {
-		steps, err := o.toFakeSteps(p.FakeSteps)
-		if err != nil {
-			_ = udpConn.Close()
-			return nil, err
-		}
-		if _, _, err := warp.SendFakes(udpConn, dst, steps, nil); err != nil {
-			_ = udpConn.Close()
-			return nil, fmt.Errorf("SendFakes: %w", err)
-		}
+	steps, err := o.toFakeSteps(p.FakeSteps)
+	if err != nil {
+		_ = udpConn.Close()
+		return nil, err
 	}
-	return warp.DialH3(ctx, udpConn, dst, tlsConfig, 30*time.Second, timeout)
+	return warp.DialH3WithStrategy(ctx, udpConn, dst, tlsConfig, 30*time.Second, timeout, steps, func(report warp.FakeReport) {
+		o.logf("WARP outer fakes sent endpoint=%s strategy=%s packets=%d bytes=%d flight=%d", endpoint,
+			diagnosticStrategyID(p.StrategyID), report.Packets, report.Bytes, report.Flight)
+	})
 }
 
 func (o *RealOpener) dialH2(ctx context.Context, phys *route.Physical, tlsConfig *tls.Config, p ipc.OpenParams, endpoint netip.AddrPort, timeout time.Duration) (*warp.Session, error) {
 	var desync *warp.DesyncSpec
 	if p.TCPDesync != nil {
-		desync = &warp.DesyncSpec{Pos: p.TCPDesync.Positions}
+		desync = &warp.DesyncSpec{Pos: p.TCPDesync.Positions, OnApplied: func(segments int) {
+			o.logf("WARP outer TLS strategy applied endpoint=%s strategy=%s segments=%d", endpoint,
+				diagnosticStrategyID(p.StrategyID), segments)
+		}}
 		switch p.TCPDesync.Mode {
 		case "disorder":
 			desync.Mode = warp.DesyncDisorder
@@ -222,6 +275,13 @@ func (o *RealOpener) loadBlob(name string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(o.BlobsDir, file))
 }
 
+func hopLimit(value *int) int {
+	if value != nil {
+		return *value
+	}
+	return 0
+}
+
 func (o *RealOpener) toFakeSteps(in []ipc.FakeStep) ([]warp.FakeStep, error) {
 	out := make([]warp.FakeStep, 0, len(in))
 	for _, step := range in {
@@ -233,7 +293,7 @@ func (o *RealOpener) toFakeSteps(in []ipc.FakeStep) ([]warp.FakeStep, error) {
 		if step.IPTTL != nil {
 			ttl = *step.IPTTL
 		}
-		out = append(out, warp.FakeStep{Blob: blob, Repeats: step.Repeats, TTL: ttl})
+		out = append(out, warp.FakeStep{Blob: blob, Repeats: step.Repeats, TTL: ttl, HopLimit: hopLimit(step.IP6TTL)})
 	}
 	return out, nil
 }
@@ -242,12 +302,26 @@ func (o *RealOpener) toFakeSteps(in []ipc.FakeStep) ([]warp.FakeStep, error) {
 // dropping the handshake, and what the scan loop reports as "no connection within N s") is
 // distinguished from every other failure.
 func dialErrToConnError(err error) error {
+	var existing *ipc.ConnError
+	if errors.As(err, &existing) {
+		copy := *existing
+		return &copy
+	}
 	var ne net.Error
 	timedOut := errors.Is(err, context.DeadlineExceeded) ||
 		(errors.As(err, &ne) && ne.Timeout()) ||
 		strings.Contains(err.Error(), "timeout") ||
 		strings.Contains(err.Error(), "deadline exceeded")
-	return &ipc.ConnError{Message: err.Error(), TimedOut: timedOut}
+	failure := &ipc.ConnError{Message: err.Error(), TimedOut: timedOut}
+	var phase *warp.DialError
+	if errors.As(err, &phase) {
+		failure.Connection = &ipc.ConnectionFailure{Phase: phase.Phase}
+	}
+	if warp.IsPeerKeyMismatch(err) {
+		failure.Code = ipc.CodePeerKeyMismatch
+		failure.Connection = &ipc.ConnectionFailure{Phase: "tls"}
+	}
+	return failure
 }
 
 // realConn is one live tunnel on the real system.
@@ -267,6 +341,7 @@ type realConn struct {
 	err        error
 
 	closeOnce sync.Once
+	closeErr  error
 }
 
 func (c *realConn) Name() string          { return c.name }
@@ -291,19 +366,27 @@ func (c *realConn) finish(err error) {
 // Close tears the tunnel down, outermost first: routes and DNS go back to normal *before* the
 // interface and session disappear, so traffic is released to the ordinary path the moment teardown
 // starts instead of being black-holed into a half-closed tunnel.
-func (c *realConn) Close() {
+func (c *realConn) Close() error {
 	c.closeOnce.Do(func() {
 		if c.full != nil {
 			for _, err := range c.full.Disable() {
+				c.closeErr = errCleanupIncomplete
 				c.logf("teardown %s: %v", c.name, err)
 			}
 		}
 		if c.hostRoute {
 			if _, err := c.router.DeleteRouteIfOurs(c.measureHost, true, c.name); err != nil {
+				c.closeErr = errCleanupIncomplete
 				c.logf("teardown %s: removing the %s route: %v", c.name, c.measureHost, err)
 			}
 		}
-		_ = c.dev.Close()
+		if c.dev.Close() != nil {
+			c.closeErr = errCleanupIncomplete
+		}
 		c.session.Close()
+		if stats, ok := c.session.QUICStatistics(); ok && c.logf != nil {
+			c.logf("WARP QUIC diagnostics dev=%s stats=%+v", c.name, stats)
+		}
 	})
+	return c.closeErr
 }

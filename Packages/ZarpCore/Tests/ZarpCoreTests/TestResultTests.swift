@@ -2,6 +2,36 @@ import XCTest
 @testable import ZarpCore
 
 final class TestResultTests: XCTestCase {
+    func testConfirmationCannotCombineDifferentAccessNetworks() throws {
+        let first = TestResult(strategyId: "fixture", ok: true, networkIdentity: "wifi")
+        var second = first
+        second.networkIdentity = "hotspot"
+        XCTAssertFalse(TestResult.confirmed(first, second).confirmed)
+        let encoded = try JSONEncoder().encode(first)
+        XCTAssertEqual(try JSONDecoder().decode(TestResult.self, from: encoded).networkIdentity, "wifi")
+    }
+    func testConfirmationDoesNotClaimIndependenceForRepeatedOrUnknownEndpoints() {
+        let first = TestResult(strategyId: "s", ok: true, endpoint: "162.159.198.1:443")
+        let repeated = TestResult.confirmed(first, first)
+        XCTAssertTrue(repeated.confirmed)
+        XCTAssertFalse(repeated.independent)
+        XCTAssertTrue(repeated.endpointReused)
+        let different = TestResult.confirmed(first, TestResult(strategyId: "s", ok: true, endpoint: "162.159.198.2:443"))
+        XCTAssertTrue(different.independent)
+        XCTAssertFalse(different.endpointReused)
+        let tokens = TestResult.confirmed(TestResult(strategyId: "s", ok: true, endpoint: "isolated-0"),
+                                          TestResult(strategyId: "s", ok: true, endpoint: "isolated-1"))
+        XCTAssertFalse(tokens.independent)
+    }
+
+    func testCorruptLatenciesDoNotOverflowOrCertifySuccess() {
+        for latency in [Int.min, -1, 120_001, Int.max] {
+            let result = TestResult(strategyId: "s", ok: true, pingMs: latency)
+            XCTAssertEqual(result.score, Int.max)
+            XCTAssertFalse(TestResult.confirmed(result, result).confirmed)
+        }
+    }
+
     func testScoreWeightsPingFourTimesConnect() {
         let r = TestResult(strategyId: "s", ok: true, connectMs: 1000, pingMs: 100)
         XCTAssertEqual(r.score, 1000 + 100 * 4)

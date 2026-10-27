@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
@@ -47,6 +48,14 @@ func (m *TraceMeasurer) url(host string) string {
 // works. Keep-alive *within* one call is deliberate: the warm-up opens the connection and the
 // timed requests reuse it, so the reported ping is request latency, not connection setup.
 func (m *TraceMeasurer) Measure(ctx context.Context, host string, samples int) ipc.MeasureResult {
+	return m.measureTraffic(ctx, host, samples, true)
+}
+
+func (m *TraceMeasurer) MeasureServer(ctx context.Context, host string, samples int) ipc.MeasureResult {
+	return m.measureTraffic(ctx, host, samples, false)
+}
+
+func (m *TraceMeasurer) measureTraffic(ctx context.Context, host string, samples int, requireWarp bool) ipc.MeasureResult {
 	if samples <= 0 {
 		samples = 3
 	}
@@ -62,10 +71,10 @@ func (m *TraceMeasurer) Measure(ctx context.Context, host string, samples int) i
 		MaxIdleConns:        1,
 	}
 	defer tr.CloseIdleConnections()
-	client := &http.Client{Transport: tr, Timeout: timeout}
+	client := &http.Client{Transport: tr, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	url := m.url(host)
 
-	if _, errStr := traceOnce(ctx, client, url); errStr != "" {
+	if _, errStr := traceOnce(ctx, client, url, !requireWarp); errStr != "" {
 		return ipc.MeasureResult{Kind: "noTraffic", LastError: errStr}
 	}
 
@@ -73,7 +82,7 @@ func (m *TraceMeasurer) Measure(ctx context.Context, host string, samples int) i
 	var warpVal, lastErr string
 	for i := 0; i < samples; i++ {
 		start := time.Now()
-		warpv, errStr := traceOnce(ctx, client, url)
+		warpv, errStr := traceOnce(ctx, client, url, !requireWarp)
 		if errStr != "" {
 			lastErr = errStr
 			if ctx.Err() != nil {
@@ -81,7 +90,7 @@ func (m *TraceMeasurer) Measure(ctx context.Context, host string, samples int) i
 			}
 			continue
 		}
-		if warpv != "on" && warpv != "plus" {
+		if requireWarp && warpv != "on" && warpv != "plus" {
 			// Reached the server, but the request did not come through WARP. Detail is the raw
 			// value ("off", or "" when the line was missing); the app adds its own "warp=" label.
 			return ipc.MeasureResult{Kind: "notWarp", Detail: warpv}
@@ -99,7 +108,7 @@ func (m *TraceMeasurer) Measure(ctx context.Context, host string, samples int) i
 // traceOnce fetches cdn-cgi/trace and returns the warp= value, or (on failure) an error string —
 // two returns instead of an error so the caller can tell "reached the server but warp isn't on"
 // apart from "never reached the server at all" (noTraffic vs. notWarp).
-func traceOnce(ctx context.Context, client *http.Client, url string) (warpVal, errStr string) {
+func traceOnce(ctx context.Context, client *http.Client, url string, requireIP ...bool) (warpVal, errStr string) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err.Error()
@@ -115,14 +124,25 @@ func traceOnce(ctx context.Context, client *http.Client, url string) (warpVal, e
 	// cdn-cgi/trace is a few hundred bytes, but a single Read() call on a network response body
 	// is not guaranteed to return the whole thing at once — ReadAll loops until EOF instead of
 	// risking a truncated read that happens to cut off the warp= line.
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 8192))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 8193))
 	if err != nil {
 		return "", err.Error()
 	}
+	if len(data) > 8192 {
+		return "", "trace response exceeds limit"
+	}
+	validIP := false
 	for _, line := range strings.Split(string(data), "\n") {
 		if v, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), "warp="); ok {
 			warpVal = v
 		}
+		if v, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), "ip="); ok {
+			_, err := netip.ParseAddr(v)
+			validIP = err == nil
+		}
+	}
+	if len(requireIP) > 0 && requireIP[0] && !validIP {
+		return "", "invalid server trace response"
 	}
 	return warpVal, ""
 }

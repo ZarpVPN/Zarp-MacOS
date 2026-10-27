@@ -23,6 +23,7 @@ import (
 
 	"github.com/feg55/zarp-macos/zarpd/daemon"
 	"github.com/feg55/zarp-macos/zarpd/ipc"
+	"github.com/feg55/zarp-macos/zarpd/proxy"
 	"github.com/feg55/zarp-macos/zarpd/route"
 )
 
@@ -30,6 +31,7 @@ import (
 // embed zarpd daemon" phase passes -ldflags "-X main.version=..."), so the app and daemon can tell
 // when a stale daemon is still running after an app update. "dev" marks an unstamped build.
 var version = "dev"
+var backendGuardianDigest string
 
 func main() {
 	socketPath := flag.String("socket", "/var/run/zarpd.sock", "Unix domain socket to listen on")
@@ -57,7 +59,9 @@ func main() {
 	// Put the original DNS back if a previous run died with a full tunnel's override applied —
 	// before anything else, so a crash never leaves the machine on borrowed resolvers.
 	dns := route.NewDNSOverride(route.ExecRunner{}, *dnsBackup)
+	cleanupIncomplete := false
 	if err := dns.RecoverStale(); err != nil {
+		cleanupIncomplete = true
 		log.Printf("zarpd: restoring DNS from a previous run: %v", err)
 	}
 
@@ -68,14 +72,35 @@ func main() {
 	// Likewise delete the exclusion route a previous run died without removing.
 	journal := route.NewJournal(*routeJournal)
 	for _, err := range journal.Recover(router) {
+		cleanupIncomplete = true
 		log.Printf("zarpd: cleaning up routes from a previous run: %v", err)
 	}
+	scopedJournal := route.NewScopedJournal(*routeJournal + ".scoped")
+	if len(scopedJournal.Recover(router)) != 0 {
+		cleanupIncomplete = true
+		log.Print("zarpd: scoped application routes require recovery")
+	}
+	var backends *proxy.GuardianLauncher
+	if backendGuardianDigest != "" {
+		executable, pathErr := os.Executable()
+		if pathErr == nil {
+			programs := filepath.Dir(executable)
+			backends, pathErr = proxy.NewServerGuardianLauncher(programs, backendGuardianDigest, filepath.Join(programs, "..", "Resources", "Backends"))
+		}
+		if pathErr != nil {
+			log.Print("zarpd: bundled server engines unavailable")
+		}
+	}
 	mgr := daemon.NewManager(daemon.Config{
+		CleanupIncomplete: cleanupIncomplete,
 		Opener: &daemon.RealOpener{
 			ConfigPath: *configPath, BlobsDir: *blobsDir, MeasureHost: *measureHost, MTU: *mtu,
-			Router: router, DNS: dns, Journal: journal, Lifetime: ctx, Logf: log.Printf,
+			Router: router, DNS: dns, Journal: journal, ScopedJournal: scopedJournal, Lifetime: ctx, Logf: log.Printf,
+			Backends: backends,
 		},
-		Accounts:    &daemon.FileAccounts{Path: *configPath, DeviceName: "Zarp macOS"},
+		Accounts: &daemon.FileAccounts{Path: *configPath, DeviceName: "Zarp macOS", SetupTransport: daemon.RegistrationTransport(router), SetupNotify: func(phase string, attempt, total int) {
+			log.Printf("WARP account API: %s, strategy %d/%d", phase, attempt, total)
+		}},
 		Measurer:    &daemon.TraceMeasurer{},
 		Logs:        ring,
 		Version:     version,
@@ -104,7 +129,9 @@ func main() {
 	err := ipc.Serve(ctx, *socketPath, mgr.Handle, opts)
 	// Whether Serve ended because of a signal or a failure, every tunnel is torn down — routes and
 	// DNS back to normal — before the process exits.
-	mgr.CloseAll()
+	if cleanupErr := mgr.CloseAll(); cleanupErr != nil {
+		log.Printf("zarpd: shutdown cleanup: %v", cleanupErr)
+	}
 	if err != nil {
 		log.Printf("zarpd: ipc.Serve: %v", err)
 		closeLog()

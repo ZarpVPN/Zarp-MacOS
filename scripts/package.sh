@@ -99,6 +99,17 @@ step "Checking the bundle"
 [[ -d "$APP" ]]                              || fail "no app bundle at $APP"
 [[ -x "$DAEMON" ]]                           || fail "zarpd missing from the bundle"
 [[ -f "$LAUNCHD_PLIST" ]]                    || fail "LaunchDaemon plist missing from the bundle"
+python3 - "$LAUNCHD_PLIST" <<'PY' || fail "invalid daemon launch path"
+import plistlib
+import sys
+from pathlib import Path
+manifest = plistlib.loads(Path(sys.argv[1]).read_bytes())
+program = "/Applications/Zarp.app/Contents/MacOS/zarpd"
+assert manifest.get("Label") == "io.github.zarp.mac.zarpd"
+assert manifest.get("Program") == program
+assert manifest.get("ProgramArguments") == [program]
+assert "BundleProgram" not in manifest
+PY
 [[ -d "$APP/Contents/Resources/Lang" ]]      || fail "Resources/Lang missing from the bundle"
 [[ -f "$APP/Contents/Resources/AppIcon.icns" ]] \
                                              || fail "the app icon is missing from the bundle"

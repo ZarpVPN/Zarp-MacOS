@@ -13,7 +13,7 @@ final class LocalizationKeyUsageTests: XCTestCase {
     /// Prefixes that mark a string literal as a localization key.
     private static let keyPrefixes = [
         "main", "lang", "status", "hint", "tray", "dlg", "close", "settings", "col", "btn", "tip", "opt",
-        "result", "strategy", "detail", "progress", "err", "log", "daemon", "custom", "terms",
+        "result", "strategy", "detail", "progress", "err", "log", "daemon", "custom", "terms", "sources", "warpPlus", "connection", "routing", "apps",
     ]
 
     private func swiftFiles(under relative: String) -> [URL] {

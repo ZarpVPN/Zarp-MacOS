@@ -12,6 +12,30 @@ import (
 
 func journalPath(t *testing.T) string { return filepath.Join(t.TempDir(), "exclusions.json") }
 
+func TestIPv6ExclusionPreservesGatewayZoneAndDeletesOnlyItsHost(t *testing.T) {
+	f := &fakeRunner{handler: func(_ string, args []string) (string, error) {
+		if len(args) > 1 && args[1] == "get" {
+			return "destination: 2606:4700::1\ninterface: en0\ngateway: fe80::1%en0\nflags: <UP,HOST,STATIC>\n", nil
+		}
+		return "", nil
+	}}
+	r := New(f)
+	undo, err := r.AddExclusion(netip.MustParseAddr("2606:4700::1"), &Physical{
+		Interface: "en0", Gateway: net.ParseIP("fe80::1"), GatewayZone: "en0",
+	}, NewJournal(journalPath(t)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := undo(); err != nil {
+		t.Fatal(err)
+	}
+	got := f.log()
+	if len(got) != 3 || got[0] != "/sbin/route -n add -inet6 -host 2606:4700::1 fe80::1%en0" ||
+		got[2] != "/sbin/route -n delete -inet6 -host 2606:4700::1" {
+		t.Fatalf("wrong IPv6 commands: %v", got)
+	}
+}
+
 func TestAddExclusionThroughTheGateway(t *testing.T) {
 	w := newWorld()
 	r, f := w.router()
@@ -127,8 +151,8 @@ func TestAddExclusionRefusesARouteThroughAnotherInterface(t *testing.T) {
 
 func TestAddExclusionValidatesItsInput(t *testing.T) {
 	r, f := newWorld().router()
-	if _, err := r.AddExclusion(netip.MustParseAddr("2606:4700::1"), testPhys, nil); err == nil {
-		t.Error("an IPv6 endpoint cannot be excluded with an IPv4 host route")
+	if _, err := r.AddExclusion(netip.MustParseAddr("fe80::1%en0"), testPhys, nil); err == nil {
+		t.Error("an endpoint with a zone must be rejected")
 	}
 	if _, err := r.AddExclusion(netip.Addr{}, testPhys, nil); err == nil {
 		t.Error("an invalid address must be rejected")
@@ -264,7 +288,7 @@ func TestJournalRecoverToleratesARouteThatIsAlreadyGone(t *testing.T) {
 	}
 }
 
-func TestJournalRecoverReportsADeleteFailureButStillClearsTheJournal(t *testing.T) {
+func TestJournalRecoverRetainsADeleteFailureForVerifiedRetry(t *testing.T) {
 	path := journalPath(t)
 	w := newWorld()
 	r, _ := w.router()
@@ -281,13 +305,19 @@ func TestJournalRecoverReportsADeleteFailureButStillClearsTheJournal(t *testing.
 	if len(errs) != 1 {
 		t.Fatalf("expected the delete failure to be reported: %v", errs)
 	}
-	// Retrying forever on a route that can't be deleted would wedge every start; it was reported.
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("failed cleanup must retain recovery evidence: %v", err)
+	}
+	w.fail = nil
+	if errs := NewJournal(path).Recover(r); len(errs) != 0 || len(w.routes) != 0 {
+		t.Fatalf("fake retry failed to clean the retained record: %v routes=%v", errs, w.routes)
+	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("the journal must be cleared anyway: %v", err)
+		t.Fatal("successful recovery did not clear its record")
 	}
 }
 
-func TestJournalRecoverDiscardsACorruptFile(t *testing.T) {
+func TestJournalRecoverPreservesCorruptDataAndRefusesReplacement(t *testing.T) {
 	path := journalPath(t)
 	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
@@ -297,8 +327,18 @@ func TestJournalRecoverDiscardsACorruptFile(t *testing.T) {
 	if len(errs) == 0 {
 		t.Fatal("a corrupt journal should be reported")
 	}
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("a corrupt journal must not survive to trip the next start: %v", err)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("corrupt recovery data must survive: %v", err)
+	}
+	j := NewJournal(path)
+	if err := j.add(journalEntry{Host: testEndpoint.String(), Interface: "en0"}); err == nil {
+		t.Fatal("new record overwrote unreadable recovery data")
+	}
+	if err := j.remove(testEndpoint.String()); err == nil {
+		t.Fatal("removal overwrote unreadable recovery data")
+	}
+	if data, _ := os.ReadFile(path); string(data) != "{not json" {
+		t.Fatal("unreadable recovery evidence changed")
 	}
 	if len(f.log()) != 0 {
 		t.Fatalf("nothing can be deleted from a journal nobody can read: %q", f.log())
@@ -321,5 +361,27 @@ func TestJournalSurvivesConcurrentUse(t *testing.T) {
 	}
 	if _, err := os.Stat(j.path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("every entry was removed again, so the journal should be gone: %v", err)
+	}
+}
+
+func TestExclusionCleanupDoesNotDeleteAReplacementRoute(t *testing.T) {
+	for _, changedGateway := range []bool{false, true} {
+		w := newWorld()
+		r, _ := w.router()
+		undo, err := r.AddExclusion(testEndpoint, testPhys, NewJournal(journalPath(t)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if changedGateway {
+			w.gateways[exclusionKey] = "192.168.99.1"
+		} else {
+			w.routes[exclusionKey] = "utun99"
+		}
+		if err := undo(); err != nil {
+			t.Fatal(err)
+		}
+		if _, exists := w.routes[exclusionKey]; !exists {
+			t.Fatal("external replacement route was removed")
+		}
 	}
 }

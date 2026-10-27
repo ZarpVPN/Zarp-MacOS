@@ -1,0 +1,376 @@
+{
+  "audit_date": "2026-10-25",
+  "timezone": "Europe/Moscow",
+  "repository": "https://github.com/ZarpVPN/Zarp.git",
+  "reference_directory": "_reference/Zarp-Win-2026-10-25",
+  "base_commit": "3e78f4dff74d03d06c4115bf43865de016f04340",
+  "head": "d6695efb64030f37cbe1a52f74c742e1fc61f3da",
+  "head_matches_latest_release": true,
+  "working_tree_clean": true,
+  "commits_since_base": 2,
+  "diff_summary": {
+    "files": 30,
+    "added": 1284,
+    "deleted": 53
+  },
+  "changed_files": [
+    {
+      "path": "README.md",
+      "added": 8,
+      "deleted": 2
+    },
+    {
+      "path": "docs/testing.md",
+      "added": 3,
+      "deleted": 1
+    },
+    {
+      "path": "src/Zarp/Core/Engine.cs",
+      "added": 68,
+      "deleted": 3
+    },
+    {
+      "path": "src/Zarp/Core/L.cs",
+      "added": 2,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Core/NetCheck.cs",
+      "added": 49,
+      "deleted": 3
+    },
+    {
+      "path": "src/Zarp/Core/Warp.cs",
+      "added": 86,
+      "deleted": 15
+    },
+    {
+      "path": "src/Zarp/Core/WarpRegistrationApi.cs",
+      "added": 55,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Core/Zapret.cs",
+      "added": 24,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/de.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/en.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/es.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/fa.txt",
+      "added": 410,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/fr.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/hi.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/pt.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/ru.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Lang/zh.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "src/Zarp/Program.cs",
+      "added": 3,
+      "deleted": 2
+    },
+    {
+      "path": "src/Zarp/UI/AppsForm.cs",
+      "added": 1,
+      "deleted": 1
+    },
+    {
+      "path": "src/Zarp/UI/Controls.cs",
+      "added": 12,
+      "deleted": 8
+    },
+    {
+      "path": "src/Zarp/UI/FormControls.cs",
+      "added": 9,
+      "deleted": 5
+    },
+    {
+      "path": "src/Zarp/UI/MainForm.cs",
+      "added": 7,
+      "deleted": 3
+    },
+    {
+      "path": "src/Zarp/UI/RoutingForm.cs",
+      "added": 3,
+      "deleted": 2
+    },
+    {
+      "path": "src/Zarp/UI/SettingsForm.cs",
+      "added": 3,
+      "deleted": 2
+    },
+    {
+      "path": "src/Zarp/UI/Theme.cs",
+      "added": 16,
+      "deleted": 1
+    },
+    {
+      "path": "tests/Zarp.Tests/Program.cs",
+      "added": 3,
+      "deleted": 3
+    },
+    {
+      "path": "tests/Zarp.Tests/TestRunner.cs",
+      "added": 9,
+      "deleted": 0
+    },
+    {
+      "path": "tests/Zarp.Tests/WarpPlusTests.cs",
+      "added": 2,
+      "deleted": 2
+    },
+    {
+      "path": "tests/Zarp.Tests/WarpRegistrationProtectedTests.cs",
+      "added": 227,
+      "deleted": 0
+    },
+    {
+      "path": "tests/Zarp.Tests/WarpRegistrationTests.cs",
+      "added": 180,
+      "deleted": 0
+    }
+  ],
+  "releases": [
+    {
+      "tag_name": "v1.7.0",
+      "name": "v1.7.0",
+      "prerelease": false,
+      "published_at": "2026-10-23T17:12:58Z",
+      "html_url": "https://github.com/ZarpVPN/Zarp/releases/tag/v1.7.0",
+      "published_at_moscow": "2026-10-23T20:12:58+03:00",
+      "commit": "d6695efb64030f37cbe1a52f74c742e1fc61f3da",
+      "asset_checksums_are_published_metadata_only": true,
+      "assets": [
+        {
+          "name": "Zarp.exe",
+          "size": 32640512,
+          "digest": "sha256:337eb7c1e8772a38c3b10624bfb13cc6bcd5ff9387b445ec0a8b7da84c1fb94c",
+          "browser_download_url": "https://github.com/ZarpVPN/Zarp/releases/download/v1.7.0/Zarp.exe"
+        }
+      ]
+    },
+    {
+      "tag_name": "v1.6.0",
+      "name": "v1.6.0",
+      "prerelease": false,
+      "published_at": "2026-10-23T14:49:22Z",
+      "html_url": "https://github.com/ZarpVPN/Zarp/releases/tag/v1.6.0",
+      "published_at_moscow": "2026-10-23T17:49:22+03:00",
+      "commit": "f98dc8e5275f0e8b2331a6fe0c26b4655de42502",
+      "asset_checksums_are_published_metadata_only": true,
+      "assets": [
+        {
+          "name": "Zarp.exe",
+          "size": 32623104,
+          "digest": "sha256:8b9e54985fa291bebb142f30525239a2c566477256b09b67701be00f434f06ad",
+          "browser_download_url": "https://github.com/ZarpVPN/Zarp/releases/download/v1.6.0/Zarp.exe"
+        }
+      ]
+    }
+  ],
+  "farsi_key_comparison": {
+    "windows_english": 378,
+    "windows_farsi": 378,
+    "macos_english": 280,
+    "matching_key_names": 142,
+    "macos_keys_needing_new_translations": [
+      "apps.application",
+      "apps.choose",
+      "apps.dnsHelp",
+      "apps.help",
+      "apps.modeAll",
+      "apps.modeExclude",
+      "apps.modeInclude",
+      "apps.path",
+      "apps.serverOnly",
+      "btn.resetEndpoints",
+      "connection.dns",
+      "connection.ipv6",
+      "connection.newServer",
+      "connection.nextConnection",
+      "connection.noServer",
+      "connection.savedServers",
+      "connection.savedSource",
+      "connection.saving",
+      "connection.serverHelp",
+      "connection.serverInput",
+      "connection.serverSaveHelp",
+      "connection.useServer",
+      "custom.saveFailed",
+      "custom.skipped",
+      "daemon.badLocation",
+      "daemon.badLocationApplications",
+      "daemon.enabled",
+      "daemon.install",
+      "daemon.notFound",
+      "daemon.notInstalled",
+      "daemon.openSettings",
+      "daemon.refresh",
+      "daemon.requiresApproval",
+      "daemon.respondingNo",
+      "daemon.respondingUnknown",
+      "daemon.respondingYes",
+      "daemon.restart",
+      "daemon.restartingStale",
+      "daemon.stale",
+      "daemon.title",
+      "daemon.uninstall",
+      "daemon.unknown",
+      "detail.connectionLost",
+      "detail.strategyTestRoute",
+      "detail.termsDeclined",
+      "detail.unsupported",
+      "dlg.terms",
+      "dlg.termsAccept",
+      "dlg.termsTitle",
+      "dlg.vpnContinue",
+      "err.daemonGone",
+      "err.endpointList",
+      "err.foreignVpn",
+      "err.noAccount",
+      "err.unknownLoss",
+      "log.connectionLost",
+      "log.customSaveFailed",
+      "log.reconnectGiveUp",
+      "log.reconnecting",
+      "log.unsupportedStrategy",
+      "opt.overrideDNS",
+      "opt.overrideDNSServer",
+      "opt.reconnect",
+      "opt.routeAll",
+      "opt.routeAllServer",
+      "opt.routeAllTip",
+      "result.freshOnly",
+      "result.independent",
+      "result.unavailable",
+      "routing.fullTunnelRequired",
+      "routing.invalid",
+      "settings.backgroundService",
+      "settings.close",
+      "settings.connection",
+      "settings.endpointHelp",
+      "settings.endpoints",
+      "settings.singleEndpoint",
+      "settings.title",
+      "sources.address",
+      "sources.automatic",
+      "sources.busyError",
+      "sources.cached",
+      "sources.cancelled",
+      "sources.delete",
+      "sources.deleteHelp",
+      "sources.deleteTitle",
+      "sources.deleted",
+      "sources.done",
+      "sources.empty",
+      "sources.formatError",
+      "sources.hintFirstRun",
+      "sources.httpError",
+      "sources.import",
+      "sources.importHelp",
+      "sources.importTitle",
+      "sources.imported",
+      "sources.invalid",
+      "sources.label",
+      "sources.lastUpdate",
+      "sources.manual",
+      "sources.missingSelection",
+      "sources.networkError",
+      "sources.refresh",
+      "sources.refreshFailed",
+      "sources.refreshing",
+      "sources.runtimePending",
+      "sources.saveHelp",
+      "sources.saved",
+      "sources.select",
+      "sources.selectionSaved",
+      "sources.server",
+      "sources.sizeError",
+      "sources.source",
+      "sources.storageError",
+      "sources.subscription",
+      "sources.subscriptionTitle",
+      "sources.subtitle",
+      "sources.timeoutError",
+      "sources.title",
+      "sources.tlsError",
+      "sources.unavailable",
+      "sources.updated",
+      "sources.url",
+      "strategy.allCountries",
+      "strategy.badSyntax",
+      "strategy.badsum",
+      "strategy.countries",
+      "strategy.countryCN",
+      "strategy.countryHint",
+      "strategy.countryIR",
+      "strategy.countryRU",
+      "strategy.countrySelection",
+      "strategy.direct",
+      "strategy.directH2",
+      "strategy.unknownFeature",
+      "strategy.wgUnsupported",
+      "tray.quit",
+      "warpPlus.updateDaemon"
+    ],
+    "matching_names_still_require_semantic_review": true
+  },
+  "macos_head": "f942a4bf4b9550bbdf63d5ee9e45791c1ee08216",
+  "macos_working_tree_dirty": true,
+  "macos_reviewed_file_sha256": {
+    "zarpd/warp/account.go": "5710c31b6627a23a0cd26a2557f93f829c67f0241ca4e0bc20abadb92c22ef12",
+    "zarpd/warp/plus.go": "25431309b89f2e416f91f0c795b1bcdce23362634a10e447565a4f186e7e4e53",
+    "zarpd/daemon/accounts.go": "55dde83c7cb615159b422bbe6bbd56ebef98a8851b13d1284c8bb1a4b018048a",
+    "zarpd/daemon/manager.go": "439ce4c86738250c7d548fa1318ff278858e449345e4e0ca028dab312717a3a5",
+    "zarpd/daemon/plus.go": "290a436cb2166066115f7ffb18121969f08651881850b0d2967da8ff0f945fd1",
+    "Packages/ZarpCore/Sources/ZarpCore/Engine/ZarpEngine.swift": "43c1e809b330dd9f06e1795edbc3769ffd8de50f3ab16c90e0474f5fee11b125",
+    "Packages/ZarpCore/Sources/ZarpdIPC/ZarpdClient.swift": "3a1eaf5fd2157cd7aad1db250c37571e15b77a645a2e0e28a980d13f8f81b302",
+    "Packages/ZarpCore/Sources/ZarpCore/Localization/Localization.swift": "e8a5a8573463248f213902c62ffef93250cb34666a8680dbdfcb30da2c127928",
+    "App/Sources/Zarp/SystemNetworkInspector.swift": "ec805b63d6c8d94d4087076bf951c91fbdf32304b678c86038320951128ece31"
+  },
+  "verification": {
+    "releases_read_from_github_rest": true,
+    "release_binaries_downloaded": false,
+    "windows_code_executed": false,
+    "tests_executed": false,
+    "production_application_launched": false,
+    "warp_accounts_registered": false,
+    "vpn_or_system_network_modified": false,
+    "historical_snapshot_preserved": true
+  }
+}

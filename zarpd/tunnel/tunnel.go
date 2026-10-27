@@ -6,7 +6,10 @@ package tunnel
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"sync"
+	"time"
 
 	"golang.zx2c4.com/wireguard/tun"
 
@@ -17,30 +20,54 @@ import (
 // need 4 bytes before the IP packet for the kernel's/our own address-family header.
 const headroom = 4
 
+// A blocking device can occasionally return no packets, but it must make progress.
+// Bound empty reads and yield so a failed device cannot consume a CPU indefinitely.
+const maxEmptyReads = 100
+
+type packetStream interface {
+	ReadPacketZeroCopy(bool) ([]byte, error)
+	WritePacketBuffer([]byte, int, int) ([]byte, error)
+}
+
 // Pump moves packets between dev and session in both directions until either side stops (the
 // device closes, the session fails, or ctx-like cancellation happens via closing one of them
 // from the caller). It blocks; run it in a goroutine and Close the Tunnel's pieces to stop it.
 type Pump struct {
-	dev     tun.Device
-	session *warp.Session
-	mtu     int
+	dev            tun.Device
+	packets        packetStream
+	mtu            int
+	tcpPacketLimit int
+	session        *warp.Session
 
-	errs chan error
+	errs    chan error
+	stop    chan struct{}
+	workers sync.WaitGroup
 }
 
 // New wraps an already-open device and an already-connected session. Neither is started or
 // closed by New; the caller owns both lifetimes (mirrors Zarp-Android's Tunnel.maintain, which
 // re-dials on reconnect without recreating the device — same shape expected here later).
 func New(dev tun.Device, session *warp.Session, mtu int) *Pump {
-	return &Pump{dev: dev, session: session, mtu: mtu, errs: make(chan error, 2)}
+	return &Pump{dev: dev, packets: session.IPConn, mtu: mtu, tcpPacketLimit: session.TCPPacketLimit, session: session, errs: make(chan error, 2), stop: make(chan struct{})}
 }
 
 // Run starts both pump directions and blocks until one of them fails. The returned error is
 // whichever side failed first; the caller is responsible for tearing down dev/session afterward.
 func (p *Pump) Run() error {
-	go p.pumpDeviceToSession()
-	go p.pumpSessionToDevice()
+	defer close(p.stop)
+	p.workers.Add(2)
+	go func() { defer p.workers.Done(); p.pumpDeviceToSession() }()
+	go func() { defer p.workers.Done(); p.pumpSessionToDevice() }()
 	return <-p.errs
+}
+
+func (p *Pump) stopped() bool {
+	select {
+	case <-p.stop:
+		return true
+	default:
+		return false
+	}
 }
 
 // deviceWriter writes IP packets into the utun from one goroutine, reusing its scratch buffer
@@ -80,19 +107,56 @@ func (p *Pump) pumpDeviceToSession() {
 	// ICMP errors the session wants delivered back to the local stack (packet too big, ...) are
 	// written from this goroutine, so they get their own writer — the other direction has one too.
 	icmpOut := newDeviceWriter(p.dev, p.mtu)
+	emptyReads := 0
 	for {
+		if p.stopped() {
+			return
+		}
 		n, err := p.dev.Read(bufs, sizes, headroom)
+		if p.stopped() {
+			return
+		}
 		if err != nil {
 			p.errs <- fmt.Errorf("utun read: %w", err)
 			return
 		}
+		if n < 0 || n > len(bufs) {
+			p.errs <- errors.New("utun read: invalid packet batch count")
+			return
+		}
+		if n == 0 {
+			emptyReads++
+			if emptyReads >= maxEmptyReads {
+				p.errs <- fmt.Errorf("utun read: %w", io.ErrNoProgress)
+				return
+			}
+			timer := time.NewTimer(time.Millisecond)
+			select {
+			case <-p.stop:
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
+			continue
+		}
+		emptyReads = 0
 		for i := 0; i < n; i++ {
-			icmp, err := p.session.IPConn.WritePacketBuffer(bufs[i], headroom, sizes[i])
+			if sizes[i] <= 0 || sizes[i] > len(bufs[i])-headroom {
+				p.errs <- errors.New("utun read: invalid packet size")
+				return
+			}
+			if clampTCPMSS(bufs[i][headroom:headroom+sizes[i]], p.tcpPacketLimit) && p.session != nil {
+				p.session.NoteMSSClamp(false)
+			}
+			icmp, err := p.packets.WritePacketBuffer(bufs[i], headroom, sizes[i])
 			if err != nil {
 				p.errs <- fmt.Errorf("connect-ip write: %w", err)
 				return
 			}
 			if len(icmp) > 0 {
+				if p.session != nil {
+					p.session.NotePacketTooBig()
+				}
 				if werr := icmpOut.write(icmp); werr != nil {
 					log.Printf("tunnel: writing ICMP response to utun: %v", werr)
 				}
@@ -106,10 +170,23 @@ func (p *Pump) pumpDeviceToSession() {
 func (p *Pump) pumpSessionToDevice() {
 	out := newDeviceWriter(p.dev, p.mtu)
 	for {
-		pkt, err := p.session.IPConn.ReadPacketZeroCopy(true)
+		if p.stopped() {
+			return
+		}
+		pkt, err := p.packets.ReadPacketZeroCopy(true)
+		if p.stopped() {
+			return
+		}
 		if err != nil {
 			p.errs <- fmt.Errorf("connect-ip read: %w", err)
 			return
+		}
+		if len(pkt) == 0 {
+			p.errs <- fmt.Errorf("connect-ip read: %w", io.ErrNoProgress)
+			return
+		}
+		if clampTCPMSS(pkt, p.tcpPacketLimit) && p.session != nil {
+			p.session.NoteMSSClamp(true)
 		}
 		if err := out.write(pkt); err != nil {
 			p.errs <- fmt.Errorf("utun write: %w", err)

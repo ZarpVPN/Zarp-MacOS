@@ -71,7 +71,7 @@ final class LocalizationTests: XCTestCase {
         return url.appendingPathComponent("Resources/Lang")
     }
 
-    func testAllEightLanguageFilesExistAndParse() throws {
+    func testAllSupportedLanguageFilesExistAndParse() throws {
         let dir = repoRootLangDirectory()
         for language in Localization.languages {
             let url = dir.appendingPathComponent("\(language.code).txt")
@@ -79,6 +79,16 @@ final class LocalizationTests: XCTestCase {
                                          "missing or unreadable: \(url.path)")
             XCTAssertFalse(Localization.parseTable(contents).isEmpty, "\(language.code).txt parsed to zero keys")
         }
+    }
+
+    func testFarsiResolvesAndChangesDirectionWithoutRestart() {
+        let loc = Localization(tables: ["en": [:], "fa": [:]])
+        XCTAssertEqual(loc.resolve(setting: nil, systemCode: "fa"), "fa")
+        XCTAssertFalse(loc.isRightToLeft)
+        loc.setLanguage("fa")
+        XCTAssertTrue(loc.isRightToLeft)
+        loc.setLanguage("ru")
+        XCTAssertFalse(loc.isRightToLeft)
     }
 
     func testEveryLanguageDefinesExactlyTheEnglishKeys() {

@@ -47,12 +47,12 @@ final class ParsingRobustnessTests: XCTestCase {
     func testCRLFCustomStrategiesFileParses() {
         let text = "# header\r\nOne | h3 | --payload=quic_initial --lua-desync=fake:blob=quic_google:repeats=2\r\nTwo | h2 | --payload=tls_client_hello --lua-desync=multisplit:pos=1\r\n"
         let strategies = CustomStrategyFile.parse(text)
-        XCTAssertEqual(strategies.map(\.id), ["custom-one", "custom-two"])
+        XCTAssertEqual(strategies.map(\.legacyId), ["custom-one", "custom-two"])
     }
 
     func testCustomStrategiesFileWithBOMParses() {
         let strategies = CustomStrategyFile.parse("\u{FEFF}One | h3 | --payload=quic_initial --lua-desync=fake:blob=quic_google:repeats=2\n")
-        XCTAssertEqual(strategies.map(\.id), ["custom-one"])
+        XCTAssertEqual(strategies.map(\.legacyId), ["custom-one"])
     }
 
     // MARK: - strategy arguments
