@@ -14,6 +14,30 @@ Working date: 2026-10-27 (Europe/Moscow). Earlier results retain their execution
 - Historical references match the snapshot and were preserved. A separate Windows
   1.6 prerelease reference was added, as recorded below. `_reference/` is ignored.
 
+## Go toolchain path in the Swift HTTPS fixture: 2026-10-27
+
+- The user's next CI log for commit 0d6ccf3 contains one ordinary failure among
+  353 tests. All eight corrected downloader tests pass. The real HTTPS fixture
+  fails to launch /opt/homebrew/bin/go with NSCocoaErrorDomain code 4. That
+  local Homebrew assumption does not match the actions/setup-go installation.
+- The fixture now uses /usr/bin/env to resolve Go from the caller's PATH.
+  It forwards HOME for the normal compiler cache and honors an explicit
+  GOCACHE, while retaining explicit offline/module/toolchain/CGO policy.
+  Compiler startup has a 90-second budget for fresh images, and the owned
+  compiler is terminated if the build scope exits while it is still running.
+  The numeric loopback server, ephemeral TLS and 40-second server cap remain.
+- Focused real HTTPS fixture PASS: `/tmp/zarp-100-ci-go-path-focused.log`.
+  The full 353-test suite also passes with zero failures when Homebrew is
+  excluded from PATH, Go is selected through a temporary toolcache wrapper
+  whose path contains spaces, and GOCACHE starts empty. The wrapper marker and
+  populated cache prove those settings were actually used. Total command
+  time: 10.580 s. Log: `/tmp/zarp-100-ci-toolcache-full-swift.log`.
+  Evidence: `build/ci-1.0.0-go-path-verification.json`.
+- The fixture remains mandatory; no test is skipped. Production source and
+  the existing release tag/assets are unchanged. No production GUI, service,
+  TUN, routes, DNS, account or current VPN was touched. A new GitHub CI run
+  remains pending the user's push of this test-only correction.
+
 ## Swift CI test crash after the 1.0.0 push: 2026-10-27
 
 - User supplied the GitHub Actions #20 Swift log for release commit 2d61438.

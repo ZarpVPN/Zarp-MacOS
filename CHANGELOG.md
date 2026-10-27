@@ -8,6 +8,9 @@ All notable changes to Zarp for macOS are listed here. The format follows
 
 ### Fixed
 
+- HTTPS subscription test fixtures resolve Go from the caller's PATH, including
+  actions/setup-go, instead of a local Homebrew path. They reuse the configured
+  compiler cache and allow a bounded first build on a fresh CI image.
 - Subscription downloader tests no longer assume that two delayed requests fit
   into a 100 ms deadline on a busy CI runner. Shared deadlines, timeout cleanup
   and cancellation are checked separately, with safe request extraction and an

@@ -10,15 +10,24 @@ final class LoopbackSubscriptionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/subscription-fixture.go")
         let binary = directory.appendingPathComponent("subscription-fixture")
+        let environment = ProcessInfo.processInfo.environment
         let build = Process()
-        build.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/go")
-        build.arguments = ["build", "-trimpath", "-o", binary.path, source.path]
-        build.environment = ["PATH": "/opt/homebrew/bin:/usr/bin:/bin", "GOTOOLCHAIN": "local", "GOENV": "off", "GOFLAGS": "",
+        // Use the compiler selected by the caller, including actions/setup-go.
+        // Keep compiler policy explicit without inheriting unrelated settings.
+        build.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        build.arguments = ["go", "build", "-trimpath", "-o", binary.path, source.path]
+        var buildEnvironment = ["PATH": environment["PATH"] ?? "/usr/bin:/bin",
+                             "HOME": environment["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path,
+                             "GOTOOLCHAIN": "local", "GOENV": "off", "GOFLAGS": "",
                              "GO111MODULE": "off", "GOPROXY": "off", "GOSUMDB": "off", "CGO_ENABLED": "0",
-                             "GOCACHE": "/tmp/zarp-parity-go-cache", "TMPDIR": directory.path]
+                             "TMPDIR": directory.path]
+        if let cache = environment["GOCACHE"] { buildEnvironment["GOCACHE"] = cache }
+        build.environment = buildEnvironment
         build.standardOutput = FileHandle.nullDevice; build.standardError = FileHandle.nullDevice
         try build.run()
-        let buildDeadline = ContinuousClock.now.advanced(by: .seconds(30))
+        defer { if build.isRunning { build.terminate(); build.waitUntilExit() } }
+        // A fresh CI image can need to compile the standard library first.
+        let buildDeadline = ContinuousClock.now.advanced(by: .seconds(90))
         while build.isRunning && ContinuousClock.now < buildDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
         guard !build.isRunning else { throw FixtureError.build }
         build.waitUntilExit()
